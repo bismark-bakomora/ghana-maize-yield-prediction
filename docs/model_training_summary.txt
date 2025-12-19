@@ -1,0 +1,44 @@
+
+================================================================================
+MODEL TRAINING SUMMARY
+================================================================================
+
+BEST MODEL: Linear Regression
+
+TEST SET PERFORMANCE:
+  - R² Score:  -11.0275
+  - RMSE:      0.0000 tons/ha
+  - MAE:       0.0000 tons/ha
+  - MAPE:      0.00%
+
+MODELS TRAINED:
+  1. Linear Regression
+  2. Ridge Regression
+  3. Lasso Regression
+  4. Decision Tree
+  5. Random Forest
+  6. Gradient Boosting
+  7. XGBoost
+  8. LightGBM
+
+DATASET INFO:
+  - Training samples:   1,227
+  - Validation samples: 364
+  - Test samples:       182
+  - Features used:      16
+
+FILES SAVED:
+  ✓ Model: best_model_linear_regression.pkl
+  ✓ Metadata: model_metadata_linear_regression.json
+  ✓ Results: all_model_results.csv
+
+================================================================================
+✅ MODEL TRAINING COMPLETE!
+================================================================================
+
+NEXT STEPS:
+  1. Review feature importance
+  2. Perform hyperparameter tuning (optional)
+  3. Create model evaluation report
+  4. Deploy model to API
+  5. Build frontend dashboard
