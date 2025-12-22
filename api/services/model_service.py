@@ -1,7 +1,7 @@
 """
 Model Service for Loading and Making Predictions
 
-Handles model loading, preprocessing, and making predictions.
+Handles model loading, preprocessing, and predictions.
 """
 
 import joblib
@@ -9,7 +9,7 @@ import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,374 +17,230 @@ logger = logging.getLogger(__name__)
 
 class ModelService:
     """Service for managing ML model and making predictions."""
-    
-    def __init__(self, model_dir: str = "../models/trained"):
+
+    def __init__(self, model_dir: str | None = None):
         """
         Initialize the model service.
-        
+
         Args:
             model_dir: Directory containing trained models
         """
-        self.model_dir = Path(model_dir)
+        # Resolve base directory safely
+        base_dir = Path(__file__).resolve().parents[2]
+
+        self.model_dir = (
+            Path(model_dir)
+            if model_dir
+            else base_dir / "models" / "trained"
+        )
+
         self.model = None
         self.scaler = None
         self.metadata = None
         self.model_name = None
-        self.feature_names = None
-        
+        self.feature_names = []
+
         self._load_model()
         self._load_scaler()
         self._load_metadata()
-    
+
+    # ------------------------------------------------------------------
+    # Model & Artifacts Loading
+    # ------------------------------------------------------------------
+
     def _load_model(self):
-        """Load the trained model."""
-        try:
-            # Find the best model file
-            model_files = list(self.model_dir.glob("best_model_*.pkl"))
-            
-            if not model_files:
-                raise FileNotFoundError(f"No model found in {self.model_dir}")
-            
-            model_path = model_files[0]
-            self.model = joblib.load(model_path)
-            self.model_name = model_path.stem.replace("best_model_", "")
-            
-            logger.info(f"✅ Loaded model: {self.model_name}")
-            
-        except Exception as e:
-            logger.error(f"Failed to load model: {str(e)}")
-            raise
-    
+        """Load the trained model if available."""
+        model_files = list(self.model_dir.glob("best_model_*.pkl"))
+
+        if not model_files:
+            logger.warning(f"⚠️ No trained model found in {self.model_dir}")
+            self.model = None
+            return
+
+        model_path = model_files[0]
+        self.model = joblib.load(model_path)
+        self.model_name = model_path.stem.replace("best_model_", "")
+
+        logger.info(f"✅ Loaded model: {self.model_name}")
+
     def _load_scaler(self):
-        """Load the feature scaler."""
-        try:
-            scaler_path = self.model_dir / "scaler.pkl"
-            
-            if scaler_path.exists():
-                self.scaler = joblib.load(scaler_path)
-                logger.info("✅ Loaded scaler")
-            else:
-                logger.warning("No scaler found - predictions will use unscaled features")
-                
-        except Exception as e:
-            logger.error(f"Failed to load scaler: {str(e)}")
-            raise
-    
+        """Load feature scaler if available."""
+        scaler_path = self.model_dir / "scaler.pkl"
+
+        if scaler_path.exists():
+            self.scaler = joblib.load(scaler_path)
+            logger.info("✅ Loaded scaler")
+        else:
+            logger.warning("⚠️ No scaler found. Features will not be scaled.")
+
     def _load_metadata(self):
-        """Load model metadata."""
-        try:
-            # Find metadata file
-            metadata_files = list(self.model_dir.glob("model_metadata_*.json"))
-            
-            if metadata_files:
-                metadata_path = metadata_files[0]
-                with open(metadata_path, 'r') as f:
-                    self.metadata = json.load(f)
-                
-                self.feature_names = self.metadata.get('features_used', [])
-                logger.info(f"✅ Loaded metadata with {len(self.feature_names)} features")
-            else:
-                logger.warning("No metadata found")
-                
-        except Exception as e:
-            logger.error(f"Failed to load metadata: {str(e)}")
-            raise
-    
-    def _engineer_features(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Create engineered features from input data.
-        
-        Args:
-            data: Input dataframe
-        
-        Returns:
-            Dataframe with engineered features
-        """
-        df = data.copy()
-        
-        # 1. Growing Degree Days
-        if 'Temperature' in df.columns and 'Sunlight' in df.columns:
-            df['Growing_Degree_Days'] = df['Temperature'] * df['Sunlight']
-        
-        # 2. Water Availability
-        if 'Rainfall' in df.columns and 'Soil_Moisture' in df.columns:
-            df['Water_Availability'] = df['Rainfall'] * df['Soil_Moisture']
-        
-        # 3. Climate Stress
-        if 'Temperature' in df.columns and 'Humidity' in df.columns:
-            df['Climate_Stress'] = df['Temperature'] / (df['Humidity'] + 1)
-        
-        # 4. Moisture-Temperature Ratio
-        if 'Soil_Moisture' in df.columns and 'Temperature' in df.columns:
-            df['Moisture_Temp_Ratio'] = df['Soil_Moisture'] / (df['Temperature'] + 1)
-        
-        # 5. Rainfall per Sunlight Hour
-        if 'Rainfall' in df.columns and 'Sunlight' in df.columns:
-            df['Rainfall_per_Sun'] = df['Rainfall'] / (df['Sunlight'] + 1)
-        
-        # 6. Years since PFJ
-        if 'Year' in df.columns and 'PFJ_Policy' in df.columns:
-            df['Years_Since_PFJ'] = df.apply(
-                lambda row: max(0, row['Year'] - 2017) if row['PFJ_Policy'] == 1 else 0,
-                axis=1
+        """Load model metadata if available."""
+        metadata_files = list(self.model_dir.glob("model_metadata_*.json"))
+
+        if not metadata_files:
+            logger.warning("⚠️ No metadata file found")
+            return
+
+        metadata_path = metadata_files[0]
+        with open(metadata_path, "r") as f:
+            self.metadata = json.load(f)
+
+        self.feature_names = self.metadata.get("features_used", [])
+        logger.info(f"✅ Loaded metadata ({len(self.feature_names)} features)")
+
+    # ------------------------------------------------------------------
+    # Feature Engineering
+    # ------------------------------------------------------------------
+
+    def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create engineered features from raw inputs."""
+        data = df.copy()
+
+        if {"Temperature", "Sunlight"} <= set(data.columns):
+            data["Growing_Degree_Days"] = data["Temperature"] * data["Sunlight"]
+
+        if {"Rainfall", "Soil_Moisture"} <= set(data.columns):
+            data["Water_Availability"] = data["Rainfall"] * data["Soil_Moisture"]
+
+        if {"Temperature", "Humidity"} <= set(data.columns):
+            data["Climate_Stress"] = data["Temperature"] / (data["Humidity"] + 1)
+
+        if {"Soil_Moisture", "Temperature"} <= set(data.columns):
+            data["Moisture_Temp_Ratio"] = data["Soil_Moisture"] / (data["Temperature"] + 1)
+
+        if {"Rainfall", "Sunlight"} <= set(data.columns):
+            data["Rainfall_per_Sun"] = data["Rainfall"] / (data["Sunlight"] + 1)
+
+        if {"Year", "PFJ_Policy"} <= set(data.columns):
+            data["Years_Since_PFJ"] = data.apply(
+                lambda r: max(0, r["Year"] - 2017) if r["PFJ_Policy"] == 1 else 0,
+                axis=1,
             )
-        
-        # 7. Yield Change (if Yield_Lag1 is provided)
-        if 'Yield_Lag1' in df.columns:
-            # For prediction, we don't have current yield, so this will be NaN
-            # We'll set it to 0 as a placeholder
-            df['Yield_Change'] = 0
-        
-        # 8. Yield Growth Rate
-        if 'Yield_Lag1' in df.columns:
-            # For prediction, set to 0 as placeholder
-            df['Yield_Growth_Rate'] = 0
-        
-        return df
-    
+
+        if "Yield_Lag1" in data.columns:
+            data["Yield_Change"] = 0
+            data["Yield_Growth_Rate"] = 0
+
+        return data
+
     def _prepare_features(self, input_data: Dict) -> pd.DataFrame:
-        """
-        Prepare features for prediction.
-        
-        Args:
-            input_data: Dictionary of input features
-        
-        Returns:
-            Prepared feature dataframe
-        """
-        # Create dataframe from input
+        """Prepare features for prediction."""
         df = pd.DataFrame([input_data])
-        
-        # Rename columns to match training data (capitalize first letter)
+
         column_mapping = {
-            'district': 'District',
-            'year': 'Year',
-            'rainfall': 'Rainfall',
-            'temperature': 'Temperature',
-            'humidity': 'Humidity',
-            'sunlight': 'Sunlight',
-            'soil_moisture': 'Soil_Moisture',
-            'soil_type': 'Soil_Type',
-            'pest_risk': 'Pest_Risk',
-            'pfj_policy': 'PFJ_Policy',
-            'yield_lag1': 'Yield_Lag1'
+            "district": "District",
+            "year": "Year",
+            "rainfall": "Rainfall",
+            "temperature": "Temperature",
+            "humidity": "Humidity",
+            "sunlight": "Sunlight",
+            "soil_moisture": "Soil_Moisture",
+            "soil_type": "Soil_Type",
+            "pest_risk": "Pest_Risk",
+            "pfj_policy": "PFJ_Policy",
+            "yield_lag1": "Yield_Lag1",
         }
-        
+
         df = df.rename(columns=column_mapping)
-        
-        # Engineer features
         df = self._engineer_features(df)
-        
-        # Select only the features used in training
+
         if self.feature_names:
-            # Only use features that exist in the dataframe
-            available_features = [f for f in self.feature_names if f in df.columns]
-            df = df[available_features]
-        
+            missing = set(self.feature_names) - set(df.columns)
+            if missing:
+                raise ValueError(f"Missing required features: {missing}")
+
+            df = df[self.feature_names]
+
         return df
-    
+
+    # ------------------------------------------------------------------
+    # Prediction
+    # ------------------------------------------------------------------
+
     def predict(self, input_data: Dict) -> Dict:
-        """
-        Make a single prediction.
-        
-        Args:
-            input_data: Dictionary of input features
-        
-        Returns:
-            Dictionary with prediction and metadata
-        """
-        try:
-            # Prepare features
-            features = self._prepare_features(input_data)
-            
-            # Make prediction
-            prediction = self.model.predict(features)[0]
-            
-            # Generate insights
-            risk_factors = self._identify_risk_factors(input_data)
-            recommendations = self._generate_recommendations(input_data, prediction)
-            
-            return {
-                'prediction': float(prediction),
-                'confidence_interval': self._calculate_confidence_interval(prediction),
-                'risk_factors': risk_factors,
-                'recommendations': recommendations,
-                'model_version': self.model_name,
-                'features_used': len(features.columns)
-            }
-            
-        except Exception as e:
-            logger.error(f"Prediction failed: {str(e)}")
-            raise
-    
-    def predict_batch(self, input_data_list: List[Dict]) -> List[Dict]:
-        """
-        Make batch predictions.
-        
-        Args:
-            input_data_list: List of input feature dictionaries
-        
-        Returns:
-            List of prediction dictionaries
-        """
-        try:
-            predictions = []
-            
-            for input_data in input_data_list:
-                prediction = self.predict(input_data)
-                predictions.append(prediction)
-            
-            return predictions
-            
-        except Exception as e:
-            logger.error(f"Batch prediction failed: {str(e)}")
-            raise
-    
-    def _calculate_confidence_interval(self, prediction: float) -> Dict[str, float]:
-        """
-        Calculate 95% confidence interval for prediction.
-        
-        Args:
-            prediction: Predicted value
-        
-        Returns:
-            Dictionary with lower and upper bounds
-        """
-        # Use a conservative estimate based on typical model error
-        # In production, this should be based on model's prediction intervals
-        std_error = 0.25  # Approximate RMSE
-        
+        """Make a single prediction."""
+        if self.model is None:
+            raise RuntimeError("Model not loaded. Train and save a model first.")
+
+        features = self._prepare_features(input_data)
+
+        if self.scaler:
+            features = pd.DataFrame(
+                self.scaler.transform(features),
+                columns=features.columns,
+            )
+
+        prediction = float(self.model.predict(features)[0])
+
         return {
-            'lower': float(max(0, prediction - 1.96 * std_error)),
-            'upper': float(prediction + 1.96 * std_error)
+            "predicted_yield": prediction,
+            "confidence_interval": self._confidence_interval(prediction),
+            "risk_factors": self._identify_risks(input_data),
+            "recommendations": self._recommend_actions(input_data, prediction),
+            "model": self.model_name,
+            "features_used": len(features.columns),
         }
-    
-    def _identify_risk_factors(self, input_data: Dict) -> List[str]:
-        """
-        Identify risk factors based on input conditions.
-        
-        Args:
-            input_data: Input feature dictionary
-        
-        Returns:
-            List of identified risk factors
-        """
-        risk_factors = []
-        
-        # Check rainfall
-        if input_data.get('rainfall', 0) < 600:
-            risk_factors.append("Below optimal rainfall (< 600mm)")
-        elif input_data.get('rainfall', 0) > 1000:
-            risk_factors.append("Excessive rainfall (> 1000mm)")
-        
-        # Check temperature
-        if input_data.get('temperature', 0) > 30:
-            risk_factors.append("High temperature stress (> 30°C)")
-        elif input_data.get('temperature', 0) < 20:
-            risk_factors.append("Low temperature (< 20°C)")
-        
-        # Check soil moisture
-        if input_data.get('soil_moisture', 0) < 0.5:
-            risk_factors.append("Low soil moisture (< 0.5)")
-        
-        # Check pest risk
-        if input_data.get('pest_risk', 0) == 1:
-            risk_factors.append("Elevated pest risk detected")
-        
-        # Check humidity
-        if input_data.get('humidity', 0) > 85:
-            risk_factors.append("High humidity - increased disease risk")
-        
-        return risk_factors
-    
-    def _generate_recommendations(self, input_data: Dict, prediction: float) -> List[str]:
-        """
-        Generate recommendations based on input and prediction.
-        
-        Args:
-            input_data: Input feature dictionary
-            prediction: Predicted yield
-        
-        Returns:
-            List of recommendations
-        """
-        recommendations = []
-        
-        # Rainfall recommendations
-        if input_data.get('rainfall', 0) < 600:
-            recommendations.append("Consider supplementary irrigation during dry spells")
-        
-        # Temperature recommendations
-        if input_data.get('temperature', 0) > 30:
-            recommendations.append("Implement mulching to reduce soil temperature")
-        
-        # Soil moisture recommendations
-        if input_data.get('soil_moisture', 0) < 0.5:
-            recommendations.append("Improve water retention with organic matter")
-        
-        # Pest recommendations
-        if input_data.get('pest_risk', 0) == 1:
-            recommendations.append("Implement integrated pest management strategies")
-            recommendations.append("Consider resistant maize varieties")
-        
-        # PFJ Policy recommendations
-        if input_data.get('pfj_policy', 0) == 0:
-            recommendations.append("Consider enrolling in PFJ program for subsidies")
-        
-        # General recommendations based on prediction
+
+    def predict_batch(self, inputs: List[Dict]) -> List[Dict]:
+        """Make batch predictions."""
+        return [self.predict(item) for item in inputs]
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _confidence_interval(self, prediction: float) -> Dict[str, float]:
+        std_error = 0.25
+        return {
+            "lower": max(0.0, prediction - 1.96 * std_error),
+            "upper": prediction + 1.96 * std_error,
+        }
+
+    def _identify_risks(self, data: Dict) -> List[str]:
+        risks = []
+
+        if data.get("rainfall", 0) < 600:
+            risks.append("Low rainfall")
+        if data.get("rainfall", 0) > 1000:
+            risks.append("Excess rainfall")
+        if data.get("temperature", 0) > 30:
+            risks.append("High temperature stress")
+        if data.get("soil_moisture", 0) < 0.5:
+            risks.append("Low soil moisture")
+        if data.get("pest_risk") == 1:
+            risks.append("High pest risk")
+
+        return risks
+
+    def _recommend_actions(self, data: Dict, prediction: float) -> List[str]:
+        recs = []
+
+        if data.get("rainfall", 0) < 600:
+            recs.append("Use supplementary irrigation")
+        if data.get("soil_moisture", 0) < 0.5:
+            recs.append("Improve soil organic matter")
+        if data.get("pest_risk") == 1:
+            recs.append("Apply integrated pest management")
+        if data.get("pfj_policy", 0) == 0:
+            recs.append("Enroll in PFJ support program")
+
         if prediction < 1.5:
-            recommendations.append("Yield below average - review soil fertility and management")
+            recs.append("Review soil fertility and crop management")
         elif prediction > 2.5:
-            recommendations.append("Excellent conditions - maintain current practices")
-        
-        return recommendations[:5]  # Return top 5 recommendations
-    
-    def get_feature_importance(self, top_n: int = 15) -> List[Dict]:
-        """
-        Get feature importance from the model.
-        
-        Args:
-            top_n: Number of top features to return
-        
-        Returns:
-            List of dictionaries with feature names and importance scores
-        """
-        if not hasattr(self.model, 'feature_importances_'):
-            return []
-        
-        importance_data = []
-        
-        if self.feature_names:
-            importances = self.model.feature_importances_
-            
-            for feature, importance in zip(self.feature_names, importances):
-                importance_data.append({
-                    'feature': feature,
-                    'importance': float(importance)
-                })
-            
-            # Sort by importance and return top N
-            importance_data.sort(key=lambda x: x['importance'], reverse=True)
-            return importance_data[:top_n]
-        
-        return []
-    
+            recs.append("Maintain current best practices")
+
+        return recs[:5]
+
+    # ------------------------------------------------------------------
+    # Metadata
+    # ------------------------------------------------------------------
+
     def get_model_info(self) -> Dict:
-        """
-        Get model information.
-        
-        Returns:
-            Dictionary with model metadata
-        """
-        info = {
-            'model_name': self.model_name,
-            'model_version': '1.0.0',
-            'model_type': type(self.model).__name__ if self.model else 'Unknown',
-            'features_count': len(self.feature_names) if self.feature_names else 0
+        """Return model information."""
+        return {
+            "name": self.model_name,
+            "type": type(self.model).__name__ if self.model else "Unavailable",
+            "features": len(self.feature_names),
+            "training_date": self.metadata.get("training_date") if self.metadata else None,
+            "metrics": self.metadata.get("test_metrics") if self.metadata else None,
         }
-        
-        if self.metadata:
-            info['training_date'] = self.metadata.get('training_date', 'Unknown')
-            info['performance_metrics'] = self.metadata.get('test_metrics', {})
-        
-        return info
