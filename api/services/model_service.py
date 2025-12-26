@@ -49,9 +49,7 @@ class ModelService:
     # ------------------------------------------------------------------
 
     def _load_model(self):
-        """Load the trained model if available."""
         model_files = list(self.model_dir.glob("best_model_*.pkl"))
-
         if not model_files:
             logger.warning(f"⚠️ No trained model found in {self.model_dir}")
             self.model = None
@@ -60,13 +58,10 @@ class ModelService:
         model_path = model_files[0]
         self.model = joblib.load(model_path)
         self.model_name = model_path.stem.replace("best_model_", "")
-
         logger.info(f"✅ Loaded model: {self.model_name}")
 
     def _load_scaler(self):
-        """Load feature scaler if available."""
         scaler_path = self.model_dir / "scaler.pkl"
-
         if scaler_path.exists():
             self.scaler = joblib.load(scaler_path)
             logger.info("✅ Loaded scaler")
@@ -74,9 +69,7 @@ class ModelService:
             logger.warning("⚠️ No scaler found. Features will not be scaled.")
 
     def _load_metadata(self):
-        """Load model metadata if available."""
         metadata_files = list(self.model_dir.glob("model_metadata_*.json"))
-
         if not metadata_files:
             logger.warning("⚠️ No metadata file found")
             return
@@ -93,7 +86,6 @@ class ModelService:
     # ------------------------------------------------------------------
 
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create engineered features from raw inputs."""
         data = df.copy()
 
         if {"Temperature", "Sunlight"} <= set(data.columns):
@@ -124,7 +116,6 @@ class ModelService:
         return data
 
     def _prepare_features(self, input_data: Dict) -> pd.DataFrame:
-        """Prepare features for prediction."""
         df = pd.DataFrame([input_data])
 
         column_mapping = {
@@ -173,16 +164,16 @@ class ModelService:
         prediction = float(self.model.predict(features)[0])
 
         return {
-            "predicted_yield": prediction,
+            # ✅ Updated to match PredictionResponse schema
+            "prediction": prediction,
             "confidence_interval": self._confidence_interval(prediction),
             "risk_factors": self._identify_risks(input_data),
             "recommendations": self._recommend_actions(input_data, prediction),
-            "model": self.model_name,
+            "model_version": self.model_name,
             "features_used": len(features.columns),
         }
 
     def predict_batch(self, inputs: List[Dict]) -> List[Dict]:
-        """Make batch predictions."""
         return [self.predict(item) for item in inputs]
 
     # ------------------------------------------------------------------
@@ -236,7 +227,6 @@ class ModelService:
     # ------------------------------------------------------------------
 
     def get_model_info(self) -> Dict:
-        """Return model information."""
         return {
             "name": self.model_name,
             "type": type(self.model).__name__ if self.model else "Unavailable",

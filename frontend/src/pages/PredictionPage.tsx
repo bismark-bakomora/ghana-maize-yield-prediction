@@ -1,0 +1,301 @@
+import React, { useState } from 'react';
+import { Loader2, Sprout, Info, ChevronRight, CheckCircle2, AlertTriangle, ShieldCheck, BarChart3 } from 'lucide-react';
+import Layout from '../components/Layout/Layout';
+import { usePrediction } from '../hooks/usePrediction';
+import { PredictionInput } from '../types';
+import { CROP_TYPES, SOIL_TYPES } from '../utils/constants';
+
+// Sub-component for grouping related inputs
+const InputGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div className="space-y-4 mb-8">
+    <h3 className="text-sm font-bold text-emerald-700 uppercase tracking-wider border-l-4 border-emerald-500 pl-3">
+      {label}
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {children}
+    </div>
+  </div>
+);
+
+// Sub-component for reusable input fields
+interface InputFieldProps {
+  label: string;
+  name: string;
+  type?: string;
+  value: number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  min?: number;
+  max?: number;
+  step?: string;
+}
+
+const InputField: React.FC<InputFieldProps> = ({ label, name, type = "number", value, onChange, min, max, step }) => (
+  <div className="space-y-1">
+    <label className="block text-xs font-semibold text-stone-500 ml-1">{label}</label>
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      min={min}
+      max={max}
+      step={step}
+      className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+    />
+  </div>
+);
+
+const PredictionPage: React.FC = () => {
+  const { createPrediction, currentPrediction, isLoading } = usePrediction();
+  const [inputs, setInputs] = useState<PredictionInput>({
+    cropType: 'maize',
+    soilType: 'loamy',
+    rainfall: 1200,
+    temperature: 28,
+    humidity: 75,
+    phLevel: 6.5,
+    nitrogen: 50,
+    phosphorus: 30,
+    potassium: 40,
+    farmSize: 2.5,
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setInputs(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseFloat(value) || 0 : value
+    }));
+  };
+
+  const handlePredict = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createPrediction(inputs);
+    } catch (error) {
+      console.error('Prediction error:', error);
+    }
+  };
+
+  const getRiskLevel = (confidence: number): string => {
+    if (confidence >= 0.8) return 'Low';
+    if (confidence >= 0.6) return 'Medium';
+    return 'High';
+  };
+
+  const riskLevel = currentPrediction ? getRiskLevel(currentPrediction.confidence) : 'Low';
+
+  return (
+    <Layout>
+      <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-stone-900 mb-2">Crop Yield Predictor</h1>
+            <p className="text-stone-500">Provide environmental and soil data to estimate harvest yields.</p>
+          </div>
+          <div className="bg-stone-100 px-4 py-2 rounded-full flex items-center gap-2 text-stone-600 text-sm">
+            <Info size={16} />
+            <span>AI-powered predictions</span>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+          {/* Form Column */}
+          <div className="xl:col-span-3">
+            <form onSubmit={handlePredict} className="bg-white p-8 rounded-3xl shadow-sm border border-stone-100">
+              <InputGroup label="Crop & Soil Information">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-stone-500 ml-1">Crop Type</label>
+                  <select
+                    name="cropType"
+                    value={inputs.cropType}
+                    onChange={handleInputChange}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                  >
+                    {CROP_TYPES.map(crop => (
+                      <option key={crop.value} value={crop.value}>{crop.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-stone-500 ml-1">Soil Type</label>
+                  <select
+                    name="soilType"
+                    value={inputs.soilType}
+                    onChange={handleInputChange}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                  >
+                    {SOIL_TYPES.map(soil => (
+                      <option key={soil.value} value={soil.value}>{soil.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <InputField 
+                  label="Farm Size (Ha)" 
+                  name="farmSize" 
+                  value={inputs.farmSize || 0} 
+                  onChange={handleInputChange} 
+                  step="0.1" 
+                />
+                <InputField 
+                  label="pH Level" 
+                  name="phLevel" 
+                  value={inputs.phLevel} 
+                  onChange={handleInputChange} 
+                  min={0}
+                  max={14}
+                  step="0.1" 
+                />
+              </InputGroup>
+
+              <InputGroup label="Climate Conditions">
+                <InputField 
+                  label="Rainfall (mm)" 
+                  name="rainfall" 
+                  value={inputs.rainfall} 
+                  onChange={handleInputChange} 
+                />
+                <InputField 
+                  label="Temperature (°C)" 
+                  name="temperature" 
+                  value={inputs.temperature} 
+                  onChange={handleInputChange} 
+                />
+                <InputField 
+                  label="Humidity (%)" 
+                  name="humidity" 
+                  value={inputs.humidity} 
+                  onChange={handleInputChange} 
+                  min={0}
+                  max={100}
+                />
+              </InputGroup>
+
+              <InputGroup label="Soil Nutrients (kg/ha)">
+                <InputField 
+                  label="Nitrogen (N)" 
+                  name="nitrogen" 
+                  value={inputs.nitrogen} 
+                  onChange={handleInputChange} 
+                />
+                <InputField 
+                  label="Phosphorus (P)" 
+                  name="phosphorus" 
+                  value={inputs.phosphorus} 
+                  onChange={handleInputChange} 
+                />
+                <InputField 
+                  label="Potassium (K)" 
+                  name="potassium" 
+                  value={inputs.potassium} 
+                  onChange={handleInputChange} 
+                />
+              </InputGroup>
+
+              <div className="pt-6">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-12 rounded-2xl shadow-lg shadow-emerald-200 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? <Loader2 className="animate-spin" /> : <Sprout />}
+                  {isLoading ? 'Analyzing Data...' : 'Predict Harvest Yield'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Results Column */}
+          <div className="xl:col-span-1 space-y-6">
+            {!currentPrediction && !isLoading && (
+              <div className="bg-stone-50 border-2 border-dashed border-stone-200 rounded-3xl p-12 text-center h-full flex flex-col items-center justify-center text-stone-400">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                  <BarChart3 size={32} />
+                </div>
+                <p className="font-medium text-stone-600">No Prediction Yet</p>
+                <p className="text-xs max-w-[200px] mt-2">Fill the form and click predict to see AI-powered results here.</p>
+              </div>
+            )}
+
+            {isLoading && (
+              <div className="bg-white rounded-3xl p-8 border border-stone-100 shadow-sm animate-pulse space-y-6">
+                <div className="h-48 bg-stone-100 rounded-2xl" />
+                <div className="space-y-3">
+                  <div className="h-4 bg-stone-100 rounded w-3/4" />
+                  <div className="h-4 bg-stone-100 rounded w-1/2" />
+                </div>
+              </div>
+            )}
+
+            {currentPrediction && !isLoading && (
+              <div className="space-y-6 animate-in zoom-in-95 duration-500">
+                <div className="bg-white p-8 rounded-3xl shadow-xl border border-emerald-50 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4">
+                    {riskLevel === 'Low' ? (
+                      <CheckCircle2 className="text-emerald-500" />
+                    ) : (
+                      <AlertTriangle className="text-amber-500" />
+                    )}
+                  </div>
+                  
+                  <p className="text-xs font-bold text-emerald-600 uppercase mb-2">Estimated Yield</p>
+                  <div className="flex items-baseline gap-2 mb-6">
+                    <h2 className="text-5xl font-bold text-stone-900">
+                      {currentPrediction.predictedYield.toFixed(2)}
+                    </h2>
+                    <span className="text-stone-500 font-medium">Mt/Ha</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-xs font-bold mb-1">
+                        <span className="text-stone-500 uppercase">Confidence</span>
+                        <span className="text-emerald-600">
+                          {(currentPrediction.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-1000" 
+                          style={{ width: `${currentPrediction.confidence * 100}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={`p-3 rounded-xl flex items-center gap-3 ${
+                      riskLevel === 'Low' 
+                        ? 'bg-emerald-50 text-emerald-700' 
+                        : riskLevel === 'Medium'
+                        ? 'bg-yellow-50 text-yellow-700'
+                        : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      <ShieldCheck size={20} />
+                      <span className="text-sm font-bold">{riskLevel} Production Risk</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-stone-900 text-white p-6 rounded-3xl shadow-lg">
+                  <h4 className="font-bold mb-4 flex items-center gap-2">
+                    <ChevronRight size={18} className="text-emerald-400" />
+                    Key Recommendations
+                  </h4>
+                  <ul className="space-y-3">
+                    {currentPrediction.recommendations.map((rec, i) => (
+                      <li key={i} className="text-sm text-stone-300 flex items-start gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                        {rec}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default PredictionPage;

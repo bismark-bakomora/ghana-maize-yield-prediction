@@ -1,12 +1,12 @@
 {
-    "timestamp": "2025-12-19 00:44:25",
+    "timestamp": "2025-12-26 21:35:43",
     "original_shape": [
         1775,
         12
     ],
     "processed_shape": [
         1774,
-        20
+        18
     ],
     "missing_values_handled": 0,
     "duplicates_removed": 1,
@@ -26,9 +26,7 @@
         "Climate_Stress",
         "Moisture_Temp_Ratio",
         "Rainfall_per_Sun",
-        "Years_Since_PFJ",
-        "Yield_Change",
-        "Yield_Growth_Rate"
+        "Years_Since_PFJ"
     ],
     "train_size": 1228,
     "val_size": 364,
@@ -54,8 +52,6 @@
         "Climate_Stress",
         "Moisture_Temp_Ratio",
         "Rainfall_per_Sun",
-        "Years_Since_PFJ",
-        "Yield_Change",
-        "Yield_Growth_Rate"
+        "Years_Since_PFJ"
     ]
 }

@@ -3,13 +3,13 @@
 MODEL TRAINING SUMMARY
 ================================================================================
 
-BEST MODEL: Linear Regression
+BEST MODEL: Lasso
 
 TEST SET PERFORMANCE:
-  - R² Score:  -11.0275
-  - RMSE:      0.0000 tons/ha
-  - MAE:       0.0000 tons/ha
-  - MAPE:      0.00%
+  - R² Score:  -765928053462278583707443920896.0000
+  - RMSE:      0.3887 tons/ha
+  - MAE:       0.3887 tons/ha
+  - MAPE:      15.36%
 
 MODELS TRAINED:
   1. Linear Regression
@@ -22,18 +22,18 @@ MODELS TRAINED:
   8. LightGBM
 
 DATASET INFO:
-  - Training samples:   1,227
+  - Training samples:   1,228
   - Validation samples: 364
   - Test samples:       182
-  - Features used:      16
+  - Features used:      14
 
 FILES SAVED:
-  ✓ Model: best_model_linear_regression.pkl
-  ✓ Metadata: model_metadata_linear_regression.json
+  ✓ Model: best_model_lasso.pkl
+  ✓ Metadata: model_metadata_lasso.json
   ✓ Results: all_model_results.csv
 
 ================================================================================
-✅ MODEL TRAINING COMPLETE!
+MODEL TRAINING COMPLETE!
 ================================================================================
 
 NEXT STEPS:

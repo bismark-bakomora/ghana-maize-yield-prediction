@@ -1,0 +1,43 @@
+{
+    "model_name": "Lasso",
+    "model_type": "Lasso",
+    "training_date": "2025-12-26 21:40:31",
+    "features_used": [
+        "Rainfall",
+        "Temperature",
+        "Humidity",
+        "Sunlight",
+        "Soil_Moisture",
+        "Pest_Risk",
+        "PFJ_Policy",
+        "Yield_Lag1",
+        "Growing_Degree_Days",
+        "Water_Availability",
+        "Climate_Stress",
+        "Moisture_Temp_Ratio",
+        "Rainfall_per_Sun",
+        "Years_Since_PFJ"
+    ],
+    "n_features": 14,
+    "training_samples": 1228,
+    "validation_samples": 364,
+    "test_samples": 182,
+    "test_metrics": {
+        "RMSE": 0.3886549554516257,
+        "MAE": 0.3886549554516257,
+        "R2": -7.659280534622786e+29,
+        "MAPE": 15.361855946704573
+    },
+    "hyperparameters": {
+        "alpha": 0.01,
+        "copy_X": true,
+        "fit_intercept": true,
+        "max_iter": 10000,
+        "positive": false,
+        "precompute": false,
+        "random_state": 42,
+        "selection": "cyclic",
+        "tol": 0.0001,
+        "warm_start": false
+    }
+}

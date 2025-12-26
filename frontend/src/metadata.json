@@ -1,0 +1,7 @@
+{
+  "name": "Ghana Maize Yield Predictor",
+  "description": "A sophisticated agricultural tool designed for Ghanaian farmers to predict maize yields using environmental, soil, and policy data powered by AI.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
