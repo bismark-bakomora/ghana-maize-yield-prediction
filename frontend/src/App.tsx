@@ -7,15 +7,9 @@ import { ROUTES } from './utils/constants';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import PredictionPage from './pages/PredictionPage';
+import Dashboard from './pages/Dashboard';
 
 // Temporary placeholder components until we create the real ones
-
-const Dashboard = () => (
-  <div className="min-h-screen bg-gray-100 p-8">
-    <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-    <p className="text-gray-600">Dashboard placeholder</p>
-  </div>
-);
 
 const FarmingInsightsPage = () => (
   <div className="min-h-screen bg-gray-100 p-8">

@@ -4,8 +4,7 @@ import {
   LayoutDashboard, 
   LineChart, 
   Lightbulb, 
-  User, 
-  X 
+  User,
 } from 'lucide-react';
 import { ROUTES } from '../../utils/constants';
 
@@ -51,80 +50,34 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed lg:sticky top-0 left-0 h-screen bg-white shadow-lg z-50
-          transform transition-transform duration-300 ease-in-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          w-64 flex flex-col
-        `}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 lg:hidden">
-          <h2 className="text-lg font-semibold text-gray-800">Menu</h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-md text-gray-600 hover:bg-gray-100"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4">
-          <ul className="space-y-2">
+    <div className="bg-stone-50 border-b border-stone-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <nav className="bg-white rounded-2xl shadow-sm border border-stone-100 p-2">
+          <ul className="flex items-center justify-around gap-2">
             {navItems.map((item) => (
-              <li key={item.path}>
+              <li key={item.path} className="flex-1">
                 <Link
                   to={item.path}
                   onClick={onClose}
                   className={`
-                    flex items-center space-x-3 px-4 py-3 rounded-lg
-                    transition-colors duration-200
+                    flex flex-col sm:flex-row items-center justify-center gap-2 px-4 py-3 rounded-xl
+                    transition-all duration-200
                     ${
                       isActive(item.path)
-                        ? 'bg-green-50 text-green-600 font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-emerald-50 text-emerald-600 font-semibold shadow-sm'
+                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                     }
                   `}
                 >
                   {item.icon}
-                  <span>{item.name}</span>
+                  <span className="text-sm">{item.name}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </nav>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200">
-          <div className="bg-green-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-green-900 mb-1">
-              Need Help?
-            </h3>
-            <p className="text-xs text-green-700 mb-3">
-              Check our documentation for guides and tutorials
-            </p>
-            <a
-              href="#"
-              className="text-xs text-green-600 hover:text-green-700 font-medium"
-            >
-              View Documentation →
-            </a>
-          </div>
-        </div>
-      </aside>
-    </>
+      </div>
+    </div>
   );
 };
 
