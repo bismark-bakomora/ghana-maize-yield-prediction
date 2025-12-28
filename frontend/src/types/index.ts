@@ -29,16 +29,20 @@ export interface SignUpData {
 
 // Prediction Types
 export interface PredictionInput {
-  cropType: string;
-  soilType: string;
   rainfall: number;
   temperature: number;
   humidity: number;
-  phLevel: number;
-  nitrogen: number;
-  phosphorus: number;
-  potassium: number;
-  farmSize?: number;
+  sunlight: number;
+  soilMoisture: number;
+  pestRisk: number;
+  pfjPolicy: boolean;
+  yieldLag1: number;
+  growingDegreeDays: number;
+  waterAvailability: number;
+  climateStress: number;
+  moistureTempRatio: number;
+  rainfallPerSun: number;
+  yearsSincePFJ: number;
 }
 
 export interface PredictionResult {

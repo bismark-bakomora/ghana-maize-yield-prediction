@@ -3,7 +3,6 @@ import { Loader2, Sprout, Info, ChevronRight, CheckCircle2, AlertTriangle, Shiel
 import Layout from '../components/Layout/Layout';
 import { usePrediction } from '../hooks/usePrediction';
 import { PredictionInput } from '../types';
-import { CROP_TYPES, SOIL_TYPES } from '../utils/constants';
 
 // Sub-component for grouping related inputs
 const InputGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -48,23 +47,27 @@ const InputField: React.FC<InputFieldProps> = ({ label, name, type = "number", v
 const PredictionPage: React.FC = () => {
   const { createPrediction, currentPrediction, isLoading } = usePrediction();
   const [inputs, setInputs] = useState<PredictionInput>({
-    cropType: 'maize',
-    soilType: 'loamy',
     rainfall: 1200,
     temperature: 28,
     humidity: 75,
-    phLevel: 6.5,
-    nitrogen: 50,
-    phosphorus: 30,
-    potassium: 40,
-    farmSize: 2.5,
+    sunlight: 6,
+    soilMoisture: 40,
+    pestRisk: 10,
+    pfjPolicy: true,
+    yieldLag1: 2.5,
+    growingDegreeDays: 1400,
+    waterAvailability: 0.8,
+    climateStress: 0.2,
+    moistureTempRatio: 1.5,
+    rainfallPerSun: 200,
+    yearsSincePFJ: 5,
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
     setInputs(prev => ({
       ...prev,
-      [name]: type === 'number' ? parseFloat(value) || 0 : value
+      [name]: type === 'checkbox' ? checked : parseFloat(value) || 0
     }));
   };
 
@@ -90,8 +93,8 @@ const PredictionPage: React.FC = () => {
       <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-stone-900 mb-2">Crop Yield Predictor</h1>
-            <p className="text-stone-500">Provide environmental and soil data to estimate harvest yields.</p>
+            <h1 className="text-4xl font-bold text-stone-900 mb-2">Maize Yield Predictor</h1>
+            <p className="text-stone-500">Provide environmental and policy data to estimate harvest yields.</p>
           </div>
           <div className="bg-stone-100 px-4 py-2 rounded-full flex items-center gap-2 text-stone-600 text-sm">
             <Info size={16} />
@@ -103,93 +106,137 @@ const PredictionPage: React.FC = () => {
           {/* Form Column */}
           <div className="xl:col-span-3">
             <form onSubmit={handlePredict} className="bg-white p-8 rounded-3xl shadow-sm border border-stone-100">
-              <InputGroup label="Crop & Soil Information">
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-stone-500 ml-1">Crop Type</label>
-                  <select
-                    name="cropType"
-                    value={inputs.cropType}
-                    onChange={handleInputChange}
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                  >
-                    {CROP_TYPES.map(crop => (
-                      <option key={crop.value} value={crop.value}>{crop.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-stone-500 ml-1">Soil Type</label>
-                  <select
-                    name="soilType"
-                    value={inputs.soilType}
-                    onChange={handleInputChange}
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                  >
-                    {SOIL_TYPES.map(soil => (
-                      <option key={soil.value} value={soil.value}>{soil.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <InputField 
-                  label="Farm Size (Ha)" 
-                  name="farmSize" 
-                  value={inputs.farmSize || 0} 
-                  onChange={handleInputChange} 
-                  step="0.1" 
-                />
-                <InputField 
-                  label="pH Level" 
-                  name="phLevel" 
-                  value={inputs.phLevel} 
-                  onChange={handleInputChange} 
-                  min={0}
-                  max={14}
-                  step="0.1" 
-                />
-              </InputGroup>
-
-              <InputGroup label="Climate Conditions">
+              
+              {/* Climate & Atmosphere */}
+              <InputGroup label="Climate & Atmosphere">
                 <InputField 
                   label="Rainfall (mm)" 
                   name="rainfall" 
                   value={inputs.rainfall} 
-                  onChange={handleInputChange} 
+                  onChange={handleInputChange}
+                  min={0}
                 />
                 <InputField 
                   label="Temperature (°C)" 
                   name="temperature" 
                   value={inputs.temperature} 
-                  onChange={handleInputChange} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={50}
                 />
                 <InputField 
                   label="Humidity (%)" 
                   name="humidity" 
                   value={inputs.humidity} 
-                  onChange={handleInputChange} 
+                  onChange={handleInputChange}
                   min={0}
                   max={100}
                 />
+                <InputField 
+                  label="Sunlight (hours)" 
+                  name="sunlight" 
+                  value={inputs.sunlight} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={24}
+                  step="0.1"
+                />
               </InputGroup>
 
-              <InputGroup label="Soil Nutrients (kg/ha)">
+              {/* Soil & Risk Factors */}
+              <InputGroup label="Soil & Risk Factors">
                 <InputField 
-                  label="Nitrogen (N)" 
-                  name="nitrogen" 
-                  value={inputs.nitrogen} 
-                  onChange={handleInputChange} 
+                  label="Soil Moisture (%)" 
+                  name="soilMoisture" 
+                  value={inputs.soilMoisture} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={100}
                 />
                 <InputField 
-                  label="Phosphorus (P)" 
-                  name="phosphorus" 
-                  value={inputs.phosphorus} 
-                  onChange={handleInputChange} 
+                  label="Pest Risk (%)" 
+                  name="pestRisk" 
+                  value={inputs.pestRisk} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={100}
                 />
                 <InputField 
-                  label="Potassium (K)" 
-                  name="potassium" 
-                  value={inputs.potassium} 
-                  onChange={handleInputChange} 
+                  label="Growing Degree Days" 
+                  name="growingDegreeDays" 
+                  value={inputs.growingDegreeDays} 
+                  onChange={handleInputChange}
+                  min={0}
                 />
+                <InputField 
+                  label="Water Availability" 
+                  name="waterAvailability" 
+                  value={inputs.waterAvailability} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={1}
+                  step="0.01"
+                />
+              </InputGroup>
+
+              {/* Advanced Metrics */}
+              <InputGroup label="Advanced Metrics">
+                <InputField 
+                  label="Climate Stress" 
+                  name="climateStress" 
+                  value={inputs.climateStress} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={1}
+                  step="0.01"
+                />
+                <InputField 
+                  label="Moisture-Temp Ratio" 
+                  name="moistureTempRatio" 
+                  value={inputs.moistureTempRatio} 
+                  onChange={handleInputChange}
+                  min={0}
+                  step="0.1"
+                />
+                <InputField 
+                  label="Rainfall per Sunlight" 
+                  name="rainfallPerSun" 
+                  value={inputs.rainfallPerSun} 
+                  onChange={handleInputChange}
+                  min={0}
+                />
+                <InputField 
+                  label="Yield Lag (Mt/Ha)" 
+                  name="yieldLag1" 
+                  value={inputs.yieldLag1} 
+                  onChange={handleInputChange}
+                  min={0}
+                  step="0.1"
+                />
+              </InputGroup>
+
+              {/* Policy & Historical Data */}
+              <InputGroup label="Policy & Historical Data">
+                <InputField 
+                  label="Years Since PFJ" 
+                  name="yearsSincePFJ" 
+                  value={inputs.yearsSincePFJ} 
+                  onChange={handleInputChange}
+                  min={0}
+                />
+                <div className="flex items-center gap-3 pt-6 px-2 col-span-3">
+                  <input
+                    type="checkbox"
+                    id="pfjPolicy"
+                    name="pfjPolicy"
+                    checked={inputs.pfjPolicy}
+                    onChange={handleInputChange}
+                    className="w-5 h-5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="pfjPolicy" className="text-sm font-semibold text-stone-700">
+                    PFJ Policy Active
+                  </label>
+                </div>
               </InputGroup>
 
               <div className="pt-6">
