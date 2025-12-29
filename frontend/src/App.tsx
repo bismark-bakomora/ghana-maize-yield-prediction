@@ -9,15 +9,7 @@ import AuthPage from './pages/AuthPage';
 import PredictionPage from './pages/PredictionPage';
 import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
-
-// Temporary placeholder components until we create the real ones
-
-const FarmingInsightsPage = () => (
-  <div className="min-h-screen bg-gray-100 p-8">
-    <h1 className="text-3xl font-bold mb-6">Farming Insights</h1>
-    <p className="text-gray-600">Insights page placeholder</p>
-  </div>
-);
+import FarmingInsightsPage from './pages/FarmingInsightsPage';
 
 const App: React.FC = () => {
   const initialize = useAuthStore((state) => state.initialize);

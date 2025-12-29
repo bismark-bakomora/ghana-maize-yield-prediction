@@ -281,7 +281,7 @@ const LandingPage: React.FC = () => {
               </div>
               <h2 className="text-4xl font-bold mb-8 leading-tight">Supporting Ghana's Planting for Food and Jobs Program</h2>
               <p className="text-stone-400 text-lg mb-8 leading-relaxed">
-                Crop Predictor is built to support the Ministry of Agriculture's goals. We help farmers maximize the benefits of subsidized inputs and modernize their data collection practices for the PFJ Phase 2 initiative.
+                Crop Yield Predictor is built to support the Ministry of Agriculture's goals. We help farmers maximize the benefits of subsidized inputs and modernize their data collection practices for the PFJ Phase 2 initiative.
               </p>
               <div className="space-y-4">
                 {[

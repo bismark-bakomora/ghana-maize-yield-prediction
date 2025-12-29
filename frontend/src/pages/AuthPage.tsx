@@ -84,7 +84,7 @@ const AuthPage: React.FC = () => {
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-8">
               <Leaf size={32} className="text-emerald-300" />
-              <span className="text-2xl font-bold tracking-tight">Crop Predictor</span>
+              <span className="text-2xl font-bold tracking-tight">Crop Yield Predictor</span>
             </div>
             <h1 className="text-4xl font-bold mb-6">Precision farming for a prosperous future.</h1>
             <p className="text-emerald-100 leading-relaxed">
