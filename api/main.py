@@ -13,7 +13,7 @@ from pathlib import Path
 import logging
 from datetime import datetime
 
-from api.routes import prediction, health, data
+from api.routes import prediction, health, data, auth
 from api.services.model_service import ModelService
 
 # Configure logging
@@ -54,12 +54,12 @@ async def startup_event():
         model_service = ModelService()
         app.state.model_service = model_service
         
-        logger.info(f"✅ Model loaded: {model_service.model_name}")
-        logger.info(f"✅ API ready to serve predictions")
+        logger.info(f"Model loaded: {model_service.model_name}")
+        logger.info(f"API ready to serve predictions")
         logger.info("=" * 80)
         
     except Exception as e:
-        logger.error(f"❌ Failed to load model: {str(e)}")
+        logger.error(f"Failed to load model: {str(e)}")
         raise
 
 @app.on_event("shutdown")
@@ -71,6 +71,7 @@ async def shutdown_event():
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(prediction.router, prefix="/api/v1", tags=["Prediction"])
 app.include_router(data.router, prefix="/api/v1", tags=["Data"])
+app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 
 # Root endpoint
 @app.get("/", tags=["Root"])
