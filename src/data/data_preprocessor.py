@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.model_selection import train_test_split
 import joblib
 import json
 import logging
@@ -75,7 +76,7 @@ class MaizeDataPreprocessor:
         
         # Handle Yield_Lag1 with forward fill within districts
         if 'Yield_Lag1' in df.columns:
-            df['Yield_Lag1'] = df.groupby('District')['Yield_Lag1'].fillna(method='ffill')
+            df['Yield_Lag1'] = df.groupby('District')['Yield_Lag1'].ffill()
         
         # Handle numerical columns with district-level median
         numerical_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -242,36 +243,44 @@ class MaizeDataPreprocessor:
     def split_data(
         self,
         df: pd.DataFrame,
-        train_years: Optional[List[int]] = None,
-        val_years: Optional[List[int]] = None,
-        test_years: Optional[List[int]] = None
+        train_size: float = 0.60,
+        val_size: float = 0.20,
+        test_size: float = 0.20
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
-        Split data into train/validation/test sets based on years.
+        Split data into train/validation/test sets using train_test_split.
         
         Args:
             df: Input dataframe
-            train_years: Years for training (default: 2011-2018)
-            val_years: Years for validation (default: 2019-2020)
-            test_years: Years for testing (default: 2021)
+            train_size: Proportion for training (default: 0.60)
+            val_size: Proportion for validation (default: 0.20)
+            test_size: Proportion for testing (default: 0.20)
             
         Returns:
             Tuple of (train_df, val_df, test_df)
         """
         logger.info("Splitting data into train/validation/test sets...")
         
-        if train_years is None:
-            train_years = list(range(2011, 2019))
-        if val_years is None:
-            val_years = [2019, 2020]
-        if test_years is None:
-            test_years = [2021]
+        # Validate that proportions sum to 1.0
+        total_size = train_size + val_size + test_size
+        if not np.isclose(total_size, 1.0):
+            raise ValueError(f"Sizes must sum to 1.0, got {total_size}")
         
-        df = df.sort_values(['Year', 'District']).reset_index(drop=True)
+        # First split: train and temp (val + test)
+        train_df, temp_df = train_test_split(
+            df,
+            test_size=(val_size + test_size),
+            random_state=self.random_state,
+            shuffle=True
+        )
         
-        train_df = df[df['Year'].isin(train_years)].copy()
-        val_df = df[df['Year'].isin(val_years)].copy()
-        test_df = df[df['Year'].isin(test_years)].copy()
+        # Second split: validation and test from temp
+        val_df, test_df = train_test_split(
+            temp_df,
+            test_size=(test_size / (val_size + test_size)),
+            random_state=self.random_state,
+            shuffle=True
+        )
         
         logger.info(f"Train: {len(train_df)} samples ({len(train_df)/len(df)*100:.1f}%)")
         logger.info(f"Validation: {len(val_df)} samples ({len(val_df)/len(df)*100:.1f}%)")
@@ -322,12 +331,19 @@ class MaizeDataPreprocessor:
         self,
         df: pd.DataFrame,
         outlier_method: str = 'cap',
-        train_years: Optional[List[int]] = None,
-        val_years: Optional[List[int]] = None,
-        test_years: Optional[List[int]] = None
+        train_size: float = 0.60,
+        val_size: float = 0.20,
+        test_size: float = 0.20
     ) -> Dict[str, pd.DataFrame]:
         """
         Complete preprocessing pipeline: fit and transform.
+        
+        Args:
+            df: Input dataframe
+            outlier_method: Method for handling outliers ('cap' or 'remove')
+            train_size: Proportion for training (default: 0.60)
+            val_size: Proportion for validation (default: 0.20)
+            test_size: Proportion for testing (default: 0.20)
         """
         logger.info("=" * 80)
         logger.info("STARTING COMPLETE PREPROCESSING PIPELINE")
@@ -338,7 +354,7 @@ class MaizeDataPreprocessor:
         df = self.handle_outliers(df, method=outlier_method)
         df = self.engineer_features(df)
         
-        train_df, val_df, test_df = self.split_data(df, train_years, val_years, test_years)
+        train_df, val_df, test_df = self.split_data(df, train_size, val_size, test_size)
         train_scaled, val_scaled, test_scaled = self.scale_features(train_df, val_df, test_df)
         
         logger.info("=" * 80)

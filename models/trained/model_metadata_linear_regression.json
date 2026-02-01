@@ -1,7 +1,7 @@
 {
-    "model_name": "linear_regression",
+    "model_name": "Linear Regression",
     "model_type": "LinearRegression",
-    "training_date": "2025-12-21 02:24:11",
+    "training_date": "2026-01-31 10:40:13",
     "features_used": [
         "Rainfall",
         "Temperature",
@@ -21,15 +21,19 @@
         "Yield_Growth_Rate"
     ],
     "n_features": 16,
-    "test_metrics": {},
-    "hyperparameters": {
-        "copy_X": true,
-        "fit_intercept": true,
-        "n_jobs": null,
-        "positive": false
+    "training_samples": 1241,
+    "validation_samples": 355,
+    "test_samples": 178,
+    "test_metrics": {
+        "RMSE": 4.521248786757077e-16,
+        "MAE": 3.143552833770106e-16,
+        "R2": 1.0,
+        "MAPE": 2.2041749987295465e-14
     },
-    "random_state": 42,
-    "training_samples": 1227,
-    "validation_samples": 364,
-    "test_samples": 182
+    "hyperparameters": {
+        "copy_X": "True",
+        "fit_intercept": "True",
+        "n_jobs": "None",
+        "positive": "False"
+    }
 }
