@@ -1,0 +1,50 @@
+{
+    "model_name": "Random Forest",
+    "model_type": "RandomForestRegressor",
+    "features_used": [
+        "Rainfall",
+        "Temperature",
+        "Humidity",
+        "Sunlight",
+        "Soil_Moisture",
+        "Pest_Risk",
+        "PFJ_Policy",
+        "Growing_Degree_Days",
+        "Water_Availability",
+        "Climate_Stress",
+        "Moisture_Temp_Ratio",
+        "Rainfall_per_Sun",
+        "Years_Since_PFJ"
+    ],
+    "n_features": 13,
+    "training_samples": 1241,
+    "validation_samples": 355,
+    "test_samples": 178,
+    "test_metrics": {
+        "Model": "Random Forest (Test)",
+        "RMSE": 0.33714656573718427,
+        "MAE": 0.1920158465471757,
+        "R2": 0.594708481437293,
+        "MAPE": 11.071860374759483
+    },
+    "hyperparameters": {
+        "bootstrap": true,
+        "ccp_alpha": 0.0,
+        "criterion": "squared_error",
+        "max_depth": 15,
+        "max_features": "sqrt",
+        "max_leaf_nodes": null,
+        "max_samples": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 5,
+        "min_samples_split": 10,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "n_estimators": 200,
+        "n_jobs": -1,
+        "oob_score": false,
+        "random_state": 42,
+        "verbose": 0,
+        "warm_start": false
+    }
+}
