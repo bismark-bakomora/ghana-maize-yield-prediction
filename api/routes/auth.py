@@ -1,240 +1,170 @@
-"""
-Authentication Routes for Ghana Maize Yield Prediction API
-
-Handles user registration, login, and authentication.
-"""
-
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import jwt
 import bcrypt
-from uuid import uuid4
+
+from api.db.session import SessionLocal
+from api.models.user import User
+from api.schemas.auth_schema import (
+    SignUpRequest,
+    SignInRequest,
+    UserResponse,
+    AuthResponse,
+    UpdateProfileRequest,
+    ChangePasswordRequest,
+)
 
 router = APIRouter()
 security = HTTPBearer()
 
-# Configuration (move to environment variables in production)
 SECRET_KEY = "your-secret-key-change-in-production"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
-# In-memory user storage (replace with database in production)
-users_db = {}
+# -------------------- DB Dependency --------------------
 
-# Pydantic Models
-class SignUpRequest(BaseModel):
-    name: str
-    email: EmailStr
-    password: str
-    phone: Optional[str] = None
-    location: Optional[str] = None
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-class SignInRequest(BaseModel):
-    email: EmailStr
-    password: str
+# -------------------- Helpers --------------------
 
-class UserResponse(BaseModel):
-    id: str
-    name: str
-    email: str
-    phone: Optional[str] = None
-    location: Optional[str] = None
-    createdAt: str
-    updatedAt: str
-
-class AuthResponse(BaseModel):
-    user: UserResponse
-    token: str
-
-class UpdateProfileRequest(BaseModel):
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    location: Optional[str] = None
-
-class ChangePasswordRequest(BaseModel):
-    currentPassword: str
-    newPassword: str
-
-# Helper Functions
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def verify_password(password: str, hashed: str) -> bool:
-    """Verify a password against its hash."""
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+    return bcrypt.checkpw(password.encode(), hashed.encode())
 
 def create_access_token(user_id: str) -> str:
-    """Create a JWT access token."""
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {
+    payload = {
         "sub": user_id,
-        "exp": expire
+        "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Dependency to get current authenticated user."""
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
     try:
-        token = credentials.credentials
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            credentials.credentials,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
         user_id = payload.get("sub")
-        
-        if user_id is None or user_id not in users_db:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials"
-            )
-        
-        return users_db[user_id]
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return user
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
-    except jwt.JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-# Routes
-@router.post("/auth/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-async def signup(request: SignUpRequest):
-    """Register a new user."""
-    # Check if user already exists
-    if any(u["email"] == request.email for u in users_db.values()):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Create new user
-    user_id = str(uuid4())
-    now = datetime.utcnow().isoformat()
-    
-    user = {
-        "id": user_id,
-        "name": request.name,
-        "email": request.email,
-        "password": hash_password(request.password),
-        "phone": request.phone,
-        "location": request.location,
-        "createdAt": now,
-        "updatedAt": now
-    }
-    
-    users_db[user_id] = user
-    
-    # Create token
-    token = create_access_token(user_id)
-    
-    # Return user without password
-    user_response = UserResponse(
-        id=user["id"],
-        name=user["name"],
-        email=user["email"],
-        phone=user["phone"],
-        location=user["location"],
-        createdAt=user["createdAt"],
-        updatedAt=user["updatedAt"]
+# -------------------- Routes --------------------
+
+@router.post("/auth/signup", response_model=AuthResponse, status_code=201)
+def signup(request: SignUpRequest, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == request.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user = User(
+        name=request.name,
+        email=request.email,
+        password=hash_password(request.password),
+        phone=request.phone,
+        location=request.location,
     )
-    
-    return AuthResponse(user=user_response, token=token)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token(user.id)
+
+    return AuthResponse(
+        user=UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            phone=user.phone,
+            location=user.location,
+            createdAt=user.created_at,
+            updatedAt=user.updated_at,
+        ),
+        token=token,
+    )
 
 @router.post("/auth/signin", response_model=AuthResponse)
-async def signin(request: SignInRequest):
-    """Authenticate a user and return token."""
-    # Find user by email
-    user = next((u for u in users_db.values() if u["email"] == request.email), None)
-    
-    if not user or not verify_password(request.password, user["password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
-    
-    # Create token
-    token = create_access_token(user["id"])
-    
-    # Return user without password
-    user_response = UserResponse(
-        id=user["id"],
-        name=user["name"],
-        email=user["email"],
-        phone=user["phone"],
-        location=user["location"],
-        createdAt=user["createdAt"],
-        updatedAt=user["updatedAt"]
-    )
-    
-    return AuthResponse(user=user_response, token=token)
+def signin(request: SignInRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user or not verify_password(request.password, user.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
 
-@router.post("/auth/signout")
-async def signout(current_user: dict = Depends(get_current_user)):
-    """Sign out user (token invalidation handled client-side)."""
-    return {"message": "Successfully signed out"}
+    token = create_access_token(user.id)
+
+    return AuthResponse(
+        user=UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            phone=user.phone,
+            location=user.location,
+            createdAt=user.created_at,
+            updatedAt=user.updated_at,
+        ),
+        token=token,
+    )
 
 @router.get("/auth/me", response_model=UserResponse)
-async def get_current_user_info(current_user: dict = Depends(get_current_user)):
-    """Get current user information."""
+def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse(
-        id=current_user["id"],
-        name=current_user["name"],
-        email=current_user["email"],
-        phone=current_user["phone"],
-        location=current_user["location"],
-        createdAt=current_user["createdAt"],
-        updatedAt=current_user["updatedAt"]
+        id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        phone=current_user.phone,
+        location=current_user.location,
+        createdAt=current_user.created_at,
+        updatedAt=current_user.updated_at,
     )
 
 @router.put("/auth/profile", response_model=UserResponse)
-async def update_profile(
+def update_profile(
     request: UpdateProfileRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Update user profile."""
-    user_id = current_user["id"]
-    
-    if request.name:
-        users_db[user_id]["name"] = request.name
-    if request.phone:
-        users_db[user_id]["phone"] = request.phone
-    if request.location:
-        users_db[user_id]["location"] = request.location
-    
-    users_db[user_id]["updatedAt"] = datetime.utcnow().isoformat()
-    
+    for field, value in request.dict(exclude_unset=True).items():
+        setattr(current_user, field, value)
+
+    db.commit()
+    db.refresh(current_user)
+
     return UserResponse(
-        id=users_db[user_id]["id"],
-        name=users_db[user_id]["name"],
-        email=users_db[user_id]["email"],
-        phone=users_db[user_id]["phone"],
-        location=users_db[user_id]["location"],
-        createdAt=users_db[user_id]["createdAt"],
-        updatedAt=users_db[user_id]["updatedAt"]
+        id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        phone=current_user.phone,
+        location=current_user.location,
+        createdAt=current_user.created_at,
+        updatedAt=current_user.updated_at,
     )
 
 @router.post("/auth/change-password")
-async def change_password(
+def change_password(
     request: ChangePasswordRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Change user password."""
-    user_id = current_user["id"]
-    
-    # Verify current password
-    if not verify_password(request.currentPassword, users_db[user_id]["password"]):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect"
-        )
-    
-    # Update password
-    users_db[user_id]["password"] = hash_password(request.newPassword)
-    users_db[user_id]["updatedAt"] = datetime.utcnow().isoformat()
-    
+    if not verify_password(request.currentPassword, current_user.password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    current_user.password = hash_password(request.newPassword)
+    db.commit()
+
     return {"message": "Password changed successfully"}

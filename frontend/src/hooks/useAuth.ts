@@ -1,13 +1,22 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import authService from '../services/authService';
-import { LoginCredentials, SignUpData } from '../types';
+import { LoginCredentials, SignUpData, User } from '../types';
 import { ROUTES } from '../utils/constants';
 
 export const useAuth = () => {
   const navigate = useNavigate();
-  const { user, isLoading, error, isAuthenticated, setUser, setLoading, setError, clearAuth } = useAuthStore();
+  const {
+    user,
+    isLoading,
+    error,
+    isAuthenticated,
+    setUser,
+    setLoading,
+    setError,
+    clearAuth,
+  } = useAuthStore();
 
   const signIn = useCallback(async (credentials: LoginCredentials) => {
     try {
@@ -55,8 +64,8 @@ export const useAuth = () => {
   const refreshUser = useCallback(async () => {
     try {
       setLoading(true);
-      const user = await authService.getCurrentUser();
-      setUser(user);
+      const currentUser = await authService.getCurrentUser();
+      setUser(currentUser);
     } catch (err: any) {
       setError(err.message);
       clearAuth();
@@ -65,7 +74,35 @@ export const useAuth = () => {
     }
   }, [setUser, setLoading, setError, clearAuth]);
 
-  return {
+  const updateProfile = useCallback(async (data: Partial<User>) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const updatedUser = await authService.updateProfile(data);
+      setUser(updatedUser);
+      return updatedUser;
+    } catch (err: any) {
+      setError(err.message || 'Failed to update profile');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [setUser, setLoading, setError]);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await authService.changePassword(currentPassword, newPassword);
+    } catch (err: any) {
+      setError(err.message || 'Failed to change password');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, setError]);
+
+  return useMemo(() => ({
     user,
     isLoading,
     error,
@@ -74,5 +111,7 @@ export const useAuth = () => {
     signUp,
     signOut,
     refreshUser,
-  };
+    updateProfile,
+    changePassword,
+  }), [user, isLoading, error, isAuthenticated, signIn, signUp, signOut, refreshUser, updateProfile, changePassword]);
 };

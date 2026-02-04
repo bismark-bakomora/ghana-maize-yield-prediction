@@ -1,5 +1,5 @@
 import React from 'react'
-import { InputField, InputGroup } from '../components/Common/InputComponents'
+import { InputField, InputGroup } from '../components/Common/Input'
 import { GHANA_DISTRICTS } from '../utils/constants'
 import { Sprout, Loader2, Info } from 'lucide-react'
 import { PredictionInput } from '../services/predictionService'

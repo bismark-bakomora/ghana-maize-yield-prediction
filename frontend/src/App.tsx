@@ -6,27 +6,50 @@ import { ROUTES } from './utils/constants';
 // Pages
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
-import PredictionPage from './pages/PredictionPage';
 import Dashboard from './pages/Dashboard';
-import ProfilePage from './pages/ProfilePage';
+import PredictionPage from './pages/PredictionPage';
 import FarmingInsightsPage from './pages/FarmingInsightsPage';
+import ProfilePage from './pages/ProfilePage';
 
 const App: React.FC = () => {
   const initialize = useAuthStore((state) => state.initialize);
 
   useEffect(() => {
-    // Initialize auth state from localStorage
     initialize();
   }, [initialize]);
 
   return (
     <Routes>
+      {/* Public pages without Layout */}
       <Route path={ROUTES.HOME} element={<LandingPage />} />
       <Route path={ROUTES.AUTH} element={<AuthPage />} />
-      <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
-      <Route path={ROUTES.PREDICTION} element={<PredictionPage />} />
-      <Route path={ROUTES.INSIGHTS} element={<FarmingInsightsPage />} />
-      <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+
+      {/* Pages with Layout */}
+      <Route
+        path={ROUTES.DASHBOARD}
+        element={
+            <Dashboard />
+        }
+      />
+      <Route
+        path={ROUTES.PREDICTION}
+        element={
+            <PredictionPage />
+        }
+      />
+      <Route
+        path={ROUTES.INSIGHTS}
+        element={
+            <FarmingInsightsPage />
+        }
+      />
+      <Route
+        path={ROUTES.PROFILE}
+        element={
+            <ProfilePage />
+        }
+      />
+
       <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
     </Routes>
   );

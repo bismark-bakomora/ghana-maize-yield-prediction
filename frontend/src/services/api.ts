@@ -40,7 +40,7 @@ class ApiService {
           // Token expired or invalid
           localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
           localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-          window.location.href = '/auth/signin';
+        
         }
         return Promise.reject(this.handleError(error));
       }
@@ -52,9 +52,8 @@ class ApiService {
       // Server responded with error
       const data = error.response.data as any;
       return {
-        message: data.message || 'An error occurred',
-        code: data.code || error.response.status.toString(),
-        field: data.field,
+        message: data.error || data.message || 'An error occurred',
+        code: data.status_code?.toString() || error.response.status.toString(),
       };
     } else if (error.request) {
       // Request made but no response

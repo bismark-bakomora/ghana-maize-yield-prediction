@@ -16,7 +16,7 @@ const ProtectedRoute = () => {
 
   // If not logged in, redirect to auth page
   if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />
+    return <Navigate to="/auth/signin" replace />
   }
 
   // If authenticated, render the protected routes

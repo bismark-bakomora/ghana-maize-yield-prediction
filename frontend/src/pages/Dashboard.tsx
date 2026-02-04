@@ -4,16 +4,7 @@ import { TrendingUp, Sprout, AlertCircle, Calendar, ArrowUpRight, ArrowDownRight
 import Layout from '../components/Layout/Layout';
 import { usePrediction } from '../hooks/usePrediction';
 import { useAuth } from '../hooks/useAuth';
-
-// Mock trend data
-const MOCK_TRENDS = [
-  { year: '2019', yield: 2.1 },
-  { year: '2020', yield: 2.3 },
-  { year: '2021', yield: 2.5 },
-  { year: '2022', yield: 2.7 },
-  { year: '2023', yield: 2.85 },
-  { year: '2024', yield: 3.0 },
-];
+import { HISTORICAL_YIELD_TRENDS } from '../utils/constants';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -23,41 +14,81 @@ const Dashboard: React.FC = () => {
     fetchDashboardStats();
   }, [fetchDashboardStats]);
 
-  // Calculate stats from dashboardStats or use defaults
-  const avgYield = dashboardStats?.averageYield?.toFixed(2) || '2.85';
-  const totalPredictions = dashboardStats?.totalPredictions || 0;
-  const mostUsedCrop = dashboardStats?.mostUsedCrop || 'Maize';
+  // Use actual data from predictions or fall back to historical data
+  const hasPredictions = dashboardStats && dashboardStats.totalPredictions > 0;
+  
+  const avgYield = hasPredictions 
+    ? dashboardStats.averageYield.toFixed(2) 
+    : '2.15';
+    
+  const totalPredictions = hasPredictions 
+    ? dashboardStats.totalPredictions 
+    : 0;
+  
+  // Calculate trend percentage
+  const getTrendPercentage = () => {
+    if (!hasPredictions || !dashboardStats.trendData || dashboardStats.trendData.length < 2) {
+      return '+8%';
+    }
+    
+    const data = dashboardStats.trendData;
+    const latest = data[data.length - 1].yield;
+    const previous = data[data.length - 2].yield;
+    const change = ((latest - previous) / previous) * 100;
+    
+    return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+  };
+
+  const trendPercentage = getTrendPercentage();
+  const isPositiveTrend = !trendPercentage.startsWith('-');
   
   const stats = [
     { 
       label: 'Total Predictions', 
       value: totalPredictions.toString(), 
-      change: '+12%', 
+      change: hasPredictions ? 'Recent Activity' : 'Get Started', 
       up: true, 
       icon: <BarChart3 className="text-emerald-600" /> 
     },
     { 
       label: 'Avg Yield (Mt/Ha)', 
       value: avgYield, 
-      change: '+8%', 
-      up: true, 
+      change: trendPercentage, 
+      up: isPositiveTrend, 
       icon: <Sprout className="text-emerald-600" /> 
     },
     { 
-      label: 'Forecast (2025)', 
-      value: '3.12', 
-      change: '+8%', 
+      label: hasPredictions ? 'Latest Prediction' : 'Make Prediction', 
+      value: hasPredictions && dashboardStats.lastPredictionDate 
+        ? new Date(dashboardStats.lastPredictionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : '—', 
+      change: hasPredictions ? 'Updated' : 'Start Now', 
       up: true, 
       icon: <TrendingUp className="text-blue-600" /> 
     },
   ];
 
-  const trendData = dashboardStats?.trendData && dashboardStats.trendData.length > 0 
-    ? dashboardStats.trendData.map(item => ({
-        year: new Date(item.date).getFullYear().toString(),
+  // Combine historical data with user predictions
+  const getTrendData = () => {
+    if (!hasPredictions || !dashboardStats.trendData || dashboardStats.trendData.length === 0) {
+      // Use historical data
+      return HISTORICAL_YIELD_TRENDS.map(item => ({
+        year: item.year.toString(),
         yield: item.yield
-      }))
-    : MOCK_TRENDS;
+      }));
+    }
+    
+    // Use user's prediction data
+    return dashboardStats.trendData.map(item => {
+      const date = new Date(item.date);
+      return {
+        year: date.getFullYear().toString(),
+        yield: item.yield
+      };
+    });
+  };
+
+  const trendData = getTrendData();
 
   return (
     <Layout>
@@ -66,7 +97,11 @@ const Dashboard: React.FC = () => {
           <h1 className="text-4xl font-bold text-stone-900 mb-2">
             Welcome back, {user?.name || 'Farmer'}!
           </h1>
-          <p className="text-stone-500">Here's an overview of your crop predictions and insights.</p>
+          <p className="text-stone-500">
+            {hasPredictions 
+              ? "Here's an overview of your crop predictions and insights." 
+              : "Start making predictions to see your personalized dashboard."}
+          </p>
         </header>
 
         {/* Stats Grid */}
@@ -96,10 +131,12 @@ const Dashboard: React.FC = () => {
           {/* Main Chart */}
           <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-stone-800">Historical Yield Trends</h3>
+              <h3 className="text-xl font-bold text-stone-800">
+                {hasPredictions ? 'Your Yield Trends' : 'Historical Yield Trends'}
+              </h3>
               <div className="flex gap-2">
                 <span className="flex items-center text-xs text-stone-500 bg-stone-100 px-3 py-1 rounded-full">
-                  {mostUsedCrop} Avg
+                  {hasPredictions ? 'Your Data' : 'Historical Data'}
                 </span>
               </div>
             </div>
@@ -129,7 +166,8 @@ const Dashboard: React.FC = () => {
                     <YAxis 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{fill: '#94a3b8', fontSize: 12}} 
+                      tick={{fill: '#94a3b8', fontSize: 12}}
+                      label={{ value: 'Yield (Mt/Ha)', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 12 } }}
                     />
                     <Tooltip 
                       contentStyle={{ 
@@ -137,6 +175,9 @@ const Dashboard: React.FC = () => {
                         border: 'none', 
                         boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' 
                       }}
+                      formatter={(value?: number) =>
+                        value !== undefined ? [`${value.toFixed(2)} Mt/Ha`, 'Yield'] : ['—', 'Yield']
+                      }
                     />
                     <Area 
                       type="monotone" 
@@ -148,6 +189,15 @@ const Dashboard: React.FC = () => {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+              </div>
+            )}
+
+            {!hasPredictions && (
+              <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <p className="text-sm text-emerald-800">
+                  <strong>📊 Showing historical data (2011-2021)</strong><br />
+                  Make your first prediction to see personalized trends!
+                </p>
               </div>
             )}
           </div>
@@ -215,7 +265,7 @@ const Dashboard: React.FC = () => {
           <h3 className="text-2xl font-bold mb-6">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a 
-              href="/prediction" 
+              href="/predict" 
               className="bg-white/10 hover:bg-white/20 backdrop-blur-md p-6 rounded-xl transition-all group"
             >
               <div className="flex items-center gap-3 mb-2">

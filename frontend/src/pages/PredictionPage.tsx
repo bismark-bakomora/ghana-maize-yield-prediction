@@ -3,6 +3,7 @@ import { Loader2, Sprout, Info, ChevronRight, CheckCircle2, AlertTriangle, Shiel
 import Layout from '../components/Layout/Layout';
 import { usePrediction } from '../hooks/usePrediction';
 import { PredictionInput } from '../types';
+import { GHANA_DISTRICTS } from '../utils/constants';
 
 // Sub-component for grouping related inputs
 const InputGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -21,58 +22,87 @@ interface InputFieldProps {
   label: string;
   name: string;
   type?: string;
-  value: number;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  value: number | string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   min?: number;
   max?: number;
   step?: string;
+  options?: { label: string; value: string }[];
 }
 
-const InputField: React.FC<InputFieldProps> = ({ label, name, type = "number", value, onChange, min, max, step }) => (
-  <div className="space-y-1">
-    <label className="block text-xs font-semibold text-stone-500 ml-1">{label}</label>
-    <input
-      type={type}
-      name={name}
-      value={value}
-      onChange={onChange}
-      min={min}
-      max={max}
-      step={step}
-      className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-    />
-  </div>
-);
+const InputField: React.FC<InputFieldProps> = ({ label, name, type = "number", value, onChange, min, max, step, options }) => {
+  if (options) {
+    return (
+      <div className="space-y-1">
+        <label className="block text-xs font-semibold text-stone-500 ml-1">{label}</label>
+        <select
+          name={name}
+          value={value}
+          onChange={onChange}
+          className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+        >
+          <option value="">Select {label}</option>
+          {options.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs font-semibold text-stone-500 ml-1">{label}</label>
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        min={min}
+        max={max}
+        step={step}
+        className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+      />
+    </div>
+  );
+};
 
 const PredictionPage: React.FC = () => {
   const { createPrediction, currentPrediction, isLoading } = usePrediction();
   const [inputs, setInputs] = useState<PredictionInput>({
-    rainfall: 1200,
-    temperature: 28,
-    humidity: 75,
-    sunlight: 6,
-    soilMoisture: 40,
-    pestRisk: 10,
+    district: '',
+    year: new Date().getFullYear(),
+    rainfall: 800,
+    temperature: 27,
+    humidity: 70,
+    sunlight: 7,
+    soilMoisture: 0.6,
+    pestRisk: 20,
     pfjPolicy: true,
-    yieldLag1: 2.5,
-    growingDegreeDays: 1400,
-    waterAvailability: 0.8,
-    climateStress: 0.2,
-    moistureTempRatio: 1.5,
-    rainfallPerSun: 200,
-    yearsSincePFJ: 5,
+    yieldLag1: 2.2,
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    
     setInputs(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : parseFloat(value) || 0
+      [name]: type === 'checkbox' ? checked : 
+              type === 'select-one' ? value :
+              parseFloat(value) || 0
     }));
   };
 
   const handlePredict = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!inputs.district) {
+      alert('Please select a district');
+      return;
+    }
+    
     try {
       await createPrediction(inputs);
     } catch (error) {
@@ -88,13 +118,22 @@ const PredictionPage: React.FC = () => {
 
   const riskLevel = currentPrediction ? getRiskLevel(currentPrediction.confidence) : 'Low';
 
+  // Generate year options (current year ± 5 years)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 11 }, (_, i) => ({
+    label: String(currentYear - 5 + i),
+    value: String(currentYear - 5 + i)
+  }));
+
+  const districtOptions = GHANA_DISTRICTS.map(d => ({ label: d, value: d }));
+
   return (
     <Layout>
       <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-stone-900 mb-2">Maize Yield Predictor</h1>
-            <p className="text-stone-500">Provide environmental and policy data to estimate harvest yields.</p>
+            <p className="text-stone-500">Provide environmental and location data to estimate harvest yields.</p>
           </div>
           <div className="bg-stone-100 px-4 py-2 rounded-full flex items-center gap-2 text-stone-600 text-sm">
             <Info size={16} />
@@ -107,124 +146,33 @@ const PredictionPage: React.FC = () => {
           <div className="xl:col-span-3">
             <form onSubmit={handlePredict} className="bg-white p-8 rounded-3xl shadow-sm border border-stone-100">
               
-              {/* Climate & Atmosphere */}
-              <InputGroup label="Climate & Atmosphere">
+              {/* Location & Time */}
+              <InputGroup label="Location & Time">
                 <InputField 
-                  label="Rainfall (mm)" 
-                  name="rainfall" 
-                  value={inputs.rainfall} 
+                  label="District" 
+                  name="district" 
+                  type="select-one"
+                  value={inputs.district} 
                   onChange={handleInputChange}
-                  min={0}
+                  options={districtOptions}
                 />
                 <InputField 
-                  label="Temperature (°C)" 
-                  name="temperature" 
-                  value={inputs.temperature} 
+                  label="Year" 
+                  name="year" 
+                  type="select-one"
+                  value={inputs.year.toString()} 
                   onChange={handleInputChange}
-                  min={0}
-                  max={50}
+                  options={yearOptions}
                 />
                 <InputField 
-                  label="Humidity (%)" 
-                  name="humidity" 
-                  value={inputs.humidity} 
-                  onChange={handleInputChange}
-                  min={0}
-                  max={100}
-                />
-                <InputField 
-                  label="Sunlight (hours)" 
-                  name="sunlight" 
-                  value={inputs.sunlight} 
-                  onChange={handleInputChange}
-                  min={0}
-                  max={24}
-                  step="0.1"
-                />
-              </InputGroup>
-
-              {/* Soil & Risk Factors */}
-              <InputGroup label="Soil & Risk Factors">
-                <InputField 
-                  label="Soil Moisture (%)" 
-                  name="soilMoisture" 
-                  value={inputs.soilMoisture} 
-                  onChange={handleInputChange}
-                  min={0}
-                  max={100}
-                />
-                <InputField 
-                  label="Pest Risk (%)" 
-                  name="pestRisk" 
-                  value={inputs.pestRisk} 
-                  onChange={handleInputChange}
-                  min={0}
-                  max={100}
-                />
-                <InputField 
-                  label="Growing Degree Days" 
-                  name="growingDegreeDays" 
-                  value={inputs.growingDegreeDays} 
-                  onChange={handleInputChange}
-                  min={0}
-                />
-                <InputField 
-                  label="Water Availability" 
-                  name="waterAvailability" 
-                  value={inputs.waterAvailability} 
-                  onChange={handleInputChange}
-                  min={0}
-                  max={1}
-                  step="0.01"
-                />
-              </InputGroup>
-
-              {/* Advanced Metrics */}
-              <InputGroup label="Advanced Metrics">
-                <InputField 
-                  label="Climate Stress" 
-                  name="climateStress" 
-                  value={inputs.climateStress} 
-                  onChange={handleInputChange}
-                  min={0}
-                  max={1}
-                  step="0.01"
-                />
-                <InputField 
-                  label="Moisture-Temp Ratio" 
-                  name="moistureTempRatio" 
-                  value={inputs.moistureTempRatio} 
-                  onChange={handleInputChange}
-                  min={0}
-                  step="0.1"
-                />
-                <InputField 
-                  label="Rainfall per Sunlight" 
-                  name="rainfallPerSun" 
-                  value={inputs.rainfallPerSun} 
-                  onChange={handleInputChange}
-                  min={0}
-                />
-                <InputField 
-                  label="Yield Lag (Mt/Ha)" 
+                  label="Previous Yield (Mt/Ha)" 
                   name="yieldLag1" 
                   value={inputs.yieldLag1} 
                   onChange={handleInputChange}
                   min={0}
                   step="0.1"
                 />
-              </InputGroup>
-
-              {/* Policy & Historical Data */}
-              <InputGroup label="Policy & Historical Data">
-                <InputField 
-                  label="Years Since PFJ" 
-                  name="yearsSincePFJ" 
-                  value={inputs.yearsSincePFJ} 
-                  onChange={handleInputChange}
-                  min={0}
-                />
-                <div className="flex items-center gap-3 pt-6 px-2 col-span-3">
+                <div className="flex items-center gap-3 pt-6 px-2">
                   <input
                     type="checkbox"
                     id="pfjPolicy"
@@ -237,6 +185,65 @@ const PredictionPage: React.FC = () => {
                     PFJ Policy Active
                   </label>
                 </div>
+              </InputGroup>
+
+              {/* Climate & Atmosphere */}
+              <InputGroup label="Climate & Atmosphere">
+                <InputField 
+                  label="Rainfall (mm)" 
+                  name="rainfall" 
+                  value={inputs.rainfall} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={2000}
+                />
+                <InputField 
+                  label="Temperature (°C)" 
+                  name="temperature" 
+                  value={inputs.temperature} 
+                  onChange={handleInputChange}
+                  min={15}
+                  max={40}
+                  step="0.1"
+                />
+                <InputField 
+                  label="Humidity (%)" 
+                  name="humidity" 
+                  value={inputs.humidity} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={100}
+                />
+                <InputField 
+                  label="Sunlight (hours/day)" 
+                  name="sunlight" 
+                  value={inputs.sunlight} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={24}
+                  step="0.1"
+                />
+              </InputGroup>
+
+              {/* Soil & Risk Factors */}
+              <InputGroup label="Soil & Risk Factors">
+                <InputField 
+                  label="Soil Moisture (0-1)" 
+                  name="soilMoisture" 
+                  value={inputs.soilMoisture} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={1}
+                  step="0.01"
+                />
+                <InputField 
+                  label="Pest Risk (%)" 
+                  name="pestRisk" 
+                  value={inputs.pestRisk} 
+                  onChange={handleInputChange}
+                  min={0}
+                  max={100}
+                />
               </InputGroup>
 
               <div className="pt-6">
@@ -322,20 +329,39 @@ const PredictionPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-stone-900 text-white p-6 rounded-3xl shadow-lg">
-                  <h4 className="font-bold mb-4 flex items-center gap-2">
-                    <ChevronRight size={18} className="text-emerald-400" />
-                    Key Recommendations
-                  </h4>
-                  <ul className="space-y-3">
-                    {currentPrediction.recommendations.map((rec, i) => (
-                      <li key={i} className="text-sm text-stone-300 flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
-                        {rec}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {currentPrediction.recommendations.length > 0 && (
+                  <div className="bg-stone-900 text-white p-6 rounded-3xl shadow-lg">
+                    <h4 className="font-bold mb-4 flex items-center gap-2">
+                      <ChevronRight size={18} className="text-emerald-400" />
+                      Key Recommendations
+                    </h4>
+                    <ul className="space-y-3">
+                      {currentPrediction.recommendations.map((rec, i) => (
+                        <li key={i} className="text-sm text-stone-300 flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                          {rec}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {currentPrediction.riskFactors && currentPrediction.riskFactors.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-900 p-6 rounded-3xl">
+                    <h4 className="font-bold mb-3 flex items-center gap-2">
+                      <AlertTriangle size={18} />
+                      Risk Factors
+                    </h4>
+                    <ul className="space-y-2">
+                      {currentPrediction.riskFactors.map((risk, i) => (
+                        <li key={i} className="text-sm flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5 flex-shrink-0" />
+                          {risk}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -19,7 +19,7 @@ import Button from '../components/Common/Button';
 import Input from '../components/Common/Input';
 
 const ProfilePage: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateProfile, changePassword } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [profile, setProfile] = useState({
@@ -37,14 +37,47 @@ const ProfilePage: React.FC = () => {
     newsletter: true
   });
 
-  const handleSave = () => {
-    setIsEditing(false);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  };
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: ''
+  });
+
+  const [showPasswordToast, setShowPasswordToast] = useState(false);
 
   const getInitials = () => {
     return profile.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  // Save updated profile
+  const handleSave = async () => {
+    try {
+      if (updateProfile) {
+        await updateProfile({
+          name: profile.name,
+          phone: profile.phone,
+          location: profile.location
+        });
+      }
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Failed to update profile', err);
+    }
+  };
+
+  // Change password handler
+  const handleChangePassword = async () => {
+    try {
+      if (changePassword) {
+        await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+        setPasswordForm({ currentPassword: '', newPassword: '' });
+        setShowPasswordToast(true);
+        setTimeout(() => setShowPasswordToast(false), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to change password', err);
+    }
   };
 
   const handleSignOut = async () => {
@@ -54,10 +87,15 @@ const ProfilePage: React.FC = () => {
   return (
     <Layout>
       <div className="min-h-screen">
-        {/* Toast Notification */}
+        {/* Toast Notifications */}
         {showToast && (
           <div className="fixed top-20 right-4 z-50 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg animate-in slide-in-from-top-4">
             Profile updated successfully!
+          </div>
+        )}
+        {showPasswordToast && (
+          <div className="fixed top-20 right-4 z-50 bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg animate-in slide-in-from-top-4">
+            Password changed successfully!
           </div>
         )}
 
@@ -73,7 +111,7 @@ const ProfilePage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Profile Section */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Basic Info Card */}
+              {/* Personal Info Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-stone-900">Personal Information</h2>
@@ -96,13 +134,11 @@ const ProfilePage: React.FC = () => {
                   </Button>
                 </div>
 
-                {/* Avatar Section */}
+                {/* Avatar */}
                 <div className="flex items-center gap-4 mb-8 pb-8 border-b border-stone-200">
                   <div className="relative">
                     <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 flex items-center justify-center shadow-lg">
-                      <span className="text-3xl font-bold text-white">
-                        {getInitials()}
-                      </span>
+                      <span className="text-3xl font-bold text-white">{getInitials()}</span>
                     </div>
                     <button className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-white border-2 border-emerald-600 text-emerald-600 flex items-center justify-center shadow-md hover:scale-105 transition-transform">
                       <Camera className="w-4 h-4" />
@@ -136,8 +172,7 @@ const ProfilePage: React.FC = () => {
                     <Input
                       type="email"
                       value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                      disabled={!isEditing}
+                      disabled
                     />
                   </div>
 
@@ -175,6 +210,34 @@ const ProfilePage: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Change Password Form */}
+                {isEditing && (
+                  <div className="mt-6 border-t border-stone-200 pt-6">
+                    <h3 className="text-lg font-bold text-stone-900 mb-4">Change Password</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        type="password"
+                        placeholder="Current Password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      />
+                      <Input
+                        type="password"
+                        placeholder="New Password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      />
+                      <Button
+                        variant="primary"
+                        onClick={handleChangePassword}
+                        className="md:col-span-2"
+                      >
+                        Change Password
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Notification Settings */}

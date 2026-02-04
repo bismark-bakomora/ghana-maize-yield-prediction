@@ -16,6 +16,10 @@ from datetime import datetime
 from api.routes import prediction, health, data, auth
 from api.services.model_service import ModelService
 
+from api.db.session import engine
+from api.db.base import Base
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -49,6 +53,8 @@ async def startup_event():
         logger.info("=" * 80)
         logger.info("STARTING GHANA MAIZE YIELD PREDICTION API")
         logger.info("=" * 80)
+
+        Base.metadata.create_all(bind=engine)
         
         # Initialize model service
         model_service = ModelService()

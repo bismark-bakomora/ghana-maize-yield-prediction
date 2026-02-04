@@ -184,7 +184,7 @@ const LandingPage: React.FC = () => {
               <div className="w-14 h-14 mx-auto mb-6 rounded-2xl bg-emerald-100 flex items-center justify-center">
                 <TrendingUp className="text-emerald-600" size={26} />
               </div>
-              <div className="text-4xl font-bold text-stone-900 mb-2">95.0%</div>
+              <div className="text-4xl font-bold text-stone-900 mb-2">4.796%</div>
               <p className="text-stone-600 font-medium">
                 Model Prediction Accuracy
               </p>

@@ -7,6 +7,20 @@ import {
 } from "lucide-react";
 
 /* =========================
+   API CONFIGURATION
+   ========================= */
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+/* =========================
+   STORAGE KEYS
+   ========================= */
+export const STORAGE_KEYS = {
+  AUTH_TOKEN: 'maize_predictor_token',
+  USER_DATA: 'maize_predictor_user',
+  PREDICTIONS: 'maize_predictor_predictions', // For storing prediction history
+};
+
+/* =========================
    THEME COLORS (AGRIC)
    ========================= */
 export const COLORS = {
@@ -31,6 +45,21 @@ export const GHANA_DISTRICTS = [
   "Bolgatanga Municipal",
   "Cape Coast",
   "Koforidua",
+  "Techiman",
+  "Obuasi",
+  "Tema",
+  "Winneba",
+  "Akim Oda",
+  "Yendi",
+  "Bawku",
+  "Nkawkaw",
+  "Mampong",
+  "Keta",
+  "Hohoe",
+  "Konongo",
+  "Nsawam",
+  "Goaso",
+  "Berekum"
 ];
 
 /* =========================

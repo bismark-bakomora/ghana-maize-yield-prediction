@@ -27,31 +27,61 @@ export interface SignUpData {
   location?: string;
 }
 
-// Prediction Types
+// Prediction Types - UPDATED to match backend
 export interface PredictionInput {
+  district: string;
+  year: number;
   rainfall: number;
   temperature: number;
   humidity: number;
   sunlight: number;
   soilMoisture: number;
-  pestRisk: number;
-  pfjPolicy: boolean;
+  pestRisk: number; // 0-100 in UI, converted to 0/1 for API
+  pfjPolicy: boolean; // converted to 0/1 for API
   yieldLag1: number;
-  growingDegreeDays: number;
-  waterAvailability: number;
-  climateStress: number;
-  moistureTempRatio: number;
-  rainfallPerSun: number;
-  yearsSincePFJ: number;
 }
 
+// Backend API request format
+export interface PredictionApiRequest {
+  district: string;
+  year: number;
+  rainfall: number;
+  temperature: number;
+  humidity: number;
+  sunlight: number;
+  soil_moisture: number;
+  pest_risk: 0 | 1;
+  pfj_policy: 0 | 1;
+  yield_lag1: number;
+}
+
+// Backend API response format
+export interface PredictionApiResponse {
+  prediction: number;
+  confidence_interval: {
+    lower: number;
+    upper: number;
+  };
+  risk_factors: string[];
+  recommendations: string[];
+  model_version: string;
+  features_used?: number;
+}
+
+// Frontend display format
 export interface PredictionResult {
   id: string;
   userId: string;
   input: PredictionInput;
   predictedYield: number;
   confidence: number;
+  confidenceInterval: {
+    lower: number;
+    upper: number;
+  };
+  riskFactors: string[];
   recommendations: string[];
+  modelVersion: string;
   createdAt: string;
 }
 

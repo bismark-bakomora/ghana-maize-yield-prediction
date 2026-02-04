@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { usePredictionStore } from '../store/predictionStore';
 import predictionService from '../services/predictionService';
 import { PredictionInput } from '../types';
@@ -60,18 +60,18 @@ export const usePrediction = () => {
   const deletePrediction = useCallback(async (id: string) => {
     try {
       setLoading(true);
+      // Optimistic update: remove prediction immediately
+      setRecentPredictions(recentPredictions.filter(p => p.id !== id));
       await predictionService.deletePrediction(id);
-      // Refresh predictions after delete
-      await fetchRecentPredictions();
     } catch (err: any) {
       setError(err.message || 'Failed to delete prediction');
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [fetchRecentPredictions, setLoading, setError]);
+  }, [recentPredictions, setRecentPredictions, setLoading, setError]);
 
-  return {
+  return useMemo(() => ({
     currentPrediction,
     recentPredictions,
     dashboardStats,
@@ -82,5 +82,16 @@ export const usePrediction = () => {
     fetchDashboardStats,
     deletePrediction,
     clearPrediction,
-  };
+  }), [
+    currentPrediction,
+    recentPredictions,
+    dashboardStats,
+    isLoading,
+    error,
+    createPrediction,
+    fetchRecentPredictions,
+    fetchDashboardStats,
+    deletePrediction,
+    clearPrediction
+  ]);
 };

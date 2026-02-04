@@ -423,7 +423,7 @@ const FarmingInsightsPage: React.FC = () => {
                       MoFA website for detailed information about the PFJ program.
                     </p>
                     <a 
-                      href="https://mofa.gov.gh" 
+                      href="https://www.mofa.gov.gh/" 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-white hover:text-emerald-100 font-semibold"

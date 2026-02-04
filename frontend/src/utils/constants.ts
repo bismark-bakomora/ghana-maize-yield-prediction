@@ -1,4 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
 export const CROP_TYPES = [
   { label: 'Rice', value: 'rice' },
@@ -53,6 +53,39 @@ export const CHART_COLORS = {
   DANGER: '#ef4444',
   INFO: '#06b6d4',
 };
+
+export const HISTORICAL_YIELD_TRENDS = [
+  { year: 2011, yield: 1.8 },
+  { year: 2012, yield: 1.9 },
+  { year: 2013, yield: 2.0 },
+  { year: 2014, yield: 2.1 },
+  { year: 2015, yield: 2.2 },
+  { year: 2016, yield: 2.0 },
+  { year: 2017, yield: 2.3 },
+  { year: 2018, yield: 2.4 },
+  { year: 2019, yield: 2.5 },
+  { year: 2020, yield: 2.6 },
+  { year: 2021, yield: 2.7 },
+];
+
+export const GHANA_DISTRICTS: string[] = [
+  'Accra',
+  'Kumasi',
+  'Tamale',
+  'Sunyani',
+  'Cape Coast',
+  'Ho',
+  'Koforidua',
+  'Wa',
+  'Bolgatanga',
+  'Techiman',
+  'Yendi',
+  'Savelugu',
+  'Bawku',
+  'Navrongo',
+  'Ejura',
+];
+
 
 export const DEBOUNCE_DELAY = 300;
 export const DEFAULT_PAGE_SIZE = 10;
