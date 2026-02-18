@@ -42,3 +42,6 @@ colorlog>=6.7.0
 # HTTP requests (for API testing)
 requests>=2.28.0
 httpx>=0.24.0
+
+SQLAlchemy>=2.0
+databases
