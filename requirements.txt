@@ -45,3 +45,4 @@ httpx>=0.24.0
 
 SQLAlchemy>=2.0
 databases
+PyJWT>=2.8.0
