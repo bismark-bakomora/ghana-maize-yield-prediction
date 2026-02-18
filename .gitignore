@@ -62,12 +62,12 @@ data/external/*.csv
 !data/external/.gitkeep
 
 # Model files 
-models/trained/*.pkl
-models/trained/*.h5
-models/trained/*.joblib
-models/trained/*.pt
-models/trained/*.pth
-!models/trained/.gitkeep
+#models/trained/*.pkl
+#models/trained/*.h5
+#models/trained/*.joblib
+#models/trained/*.pt
+#models/trained/*.pth
+#!models/trained/.gitkeep
 
 # Logs
 logs/
