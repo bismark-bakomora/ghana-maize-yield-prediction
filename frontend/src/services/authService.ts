@@ -4,31 +4,27 @@ import { STORAGE_KEYS } from '../utils/constants';
 
 class AuthService {
   async signUp(data: SignUpData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/signup', data);
+    const response = await api.post<AuthResponse>('/api/v1/auth/signup', data);
     this.setAuthData(response);
     return response;
   }
 
   async signIn(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/signin', credentials);
+    const response = await api.post<AuthResponse>('/api/v1/auth/signin', credentials);
     this.setAuthData(response);
     return response;
   }
 
   async signOut(): Promise<void> {
-    try {
-      await api.post('/auth/signout');
-    } finally {
-      this.clearAuthData();
-    }
+    this.clearAuthData();
   }
 
   async getCurrentUser(): Promise<User> {
-    return await api.get<User>('/auth/me');
+    return await api.get<User>('/api/v1/auth/me');
   }
 
   async updateProfile(data: Partial<User>): Promise<User> {
-    const updatedUser = await api.put<User>('/auth/profile', data);
+    const updatedUser = await api.put<User>('/api/v1/auth/profile', data);
     // Update stored user data
     const currentUserData = this.getStoredUser();
     if (currentUserData) {
@@ -38,7 +34,7 @@ class AuthService {
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await api.post('/auth/change-password', {
+    await api.post('/api/v1/auth/change-password', {
       currentPassword,
       newPassword,
     });
