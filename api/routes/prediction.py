@@ -33,7 +33,7 @@ def get_model_service(request: Request) -> ModelService:
 # Single Prediction
 # -------------------------------------------------------------------
 
-@router.post("/api/v1/predict", response_model=PredictionResponse)
+@router.post("/predict", response_model=PredictionResponse)
 async def predict_yield(
     request: PredictionRequest,
     model_service: ModelService = Depends(get_model_service)
@@ -62,7 +62,7 @@ async def predict_yield(
 # Batch Prediction
 # -------------------------------------------------------------------
 
-@router.post("/api/v1/predict/batch", response_model=BatchPredictionResponse)
+@router.post("/predict/batch", response_model=BatchPredictionResponse)
 async def predict_batch(
     request: BatchPredictionRequest,
     model_service: ModelService = Depends(get_model_service)
@@ -163,7 +163,7 @@ async def get_model_info(
 # Scenario Analysis
 # -------------------------------------------------------------------
 
-@router.post("/api/v1/predict/scenario")
+@router.post("/predict/scenario")
 async def predict_scenario(
     base_request: PredictionRequest,
     rainfall_change: float = 0,
