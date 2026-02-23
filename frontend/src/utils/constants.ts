@@ -37,6 +37,7 @@ export const STORAGE_KEYS = {
   AUTH_TOKEN: 'cropPredict_auth_token',
   USER_DATA: 'cropPredict_user_data',
   THEME: 'cropPredict_theme',
+  PREDICTIONS: 'predictions',
 };
 
 export const VALIDATION_RULES = {
