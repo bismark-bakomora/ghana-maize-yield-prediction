@@ -33,7 +33,7 @@ def get_model_service(request: Request) -> ModelService:
 # Single Prediction
 # -------------------------------------------------------------------
 
-@router.post("/predict", response_model=PredictionResponse)
+@router.post("/api/v1/predict", response_model=PredictionResponse)
 async def predict_yield(
     request: PredictionRequest,
     model_service: ModelService = Depends(get_model_service)
@@ -47,7 +47,7 @@ async def predict_yield(
         input_data = request.dict()
         result = model_service.predict(input_data)
 
-        # ✅ Directly return model output (schema-aligned)
+        # Directly return model output (schema-aligned)
         return PredictionResponse(**result)
 
     except Exception as e:
@@ -62,7 +62,7 @@ async def predict_yield(
 # Batch Prediction
 # -------------------------------------------------------------------
 
-@router.post("/predict/batch", response_model=BatchPredictionResponse)
+@router.post("/api/v1/predict/batch", response_model=BatchPredictionResponse)
 async def predict_batch(
     request: BatchPredictionRequest,
     model_service: ModelService = Depends(get_model_service)
@@ -109,7 +109,7 @@ async def get_feature_importance(
     Get feature importance from the trained model.
     """
     try:
-        logger.info(f"Fetching top {top_n} feature importances")
+        logger.info(f"Fetching top {top_n} feature importance")
 
         features = model_service.get_feature_importance(top_n=top_n)
 
@@ -163,7 +163,7 @@ async def get_model_info(
 # Scenario Analysis
 # -------------------------------------------------------------------
 
-@router.post("/predict/scenario")
+@router.post("/api/v1/predict/scenario")
 async def predict_scenario(
     base_request: PredictionRequest,
     rainfall_change: float = 0,
