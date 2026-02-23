@@ -32,23 +32,33 @@ class PredictionService {
    * Convert backend API response to frontend format
    */
   private transformFromApiFormat(
-    apiResponse: PredictionApiResponse,
-    input: PredictionInput,
-    userId: string
-  ): PredictionResult {
-    return {
-      id: 'pred-' + Date.now(),
-      userId: userId,
-      input: input,
-      predictedYield: apiResponse.prediction,
-      confidence: this.calculateConfidence(apiResponse.confidence_interval),
-      confidenceInterval: apiResponse.confidence_interval,
-      riskFactors: apiResponse.risk_factors || [],
-      recommendations: apiResponse.recommendations || [],
-      modelVersion: apiResponse.model_version,
-      createdAt: new Date().toISOString(),
-    };
+  apiResponse: PredictionApiResponse,
+  input: PredictionInput,
+  userId: string
+): PredictionResult {
+  // Determine risk level based on confidence or risk factors
+  let riskLevel: 'Low' | 'Medium' | 'High' = 'Low';
+
+  if (apiResponse.risk_factors.length > 2) {
+    riskLevel = 'High';
+  } else if (apiResponse.risk_factors.length > 0) {
+    riskLevel = 'Medium';
   }
+
+  return {
+    id: 'pred-' + Date.now(),
+    userId: userId,
+    input: input,
+    predictedYield: apiResponse.prediction,
+    confidence: this.calculateConfidence(apiResponse.confidence_interval),
+    confidenceInterval: apiResponse.confidence_interval,
+    riskFactors: apiResponse.risk_factors || [],
+    recommendations: apiResponse.recommendations || [],
+    modelVersion: apiResponse.model_version,
+    createdAt: new Date().toISOString(),
+    riskLevel,
+  };
+}
 
   /**
    * Calculate confidence percentage from confidence interval
@@ -100,7 +110,7 @@ class PredictionService {
    */
   async createPrediction(input: PredictionInput): Promise<PredictionResult> {
     const apiInput = this.transformToApiFormat(input);
-    const apiResponse = await api.post<PredictionApiResponse>('/predict', apiInput);
+    const apiResponse = await api.post<PredictionApiResponse>('/api/v1/predict', apiInput);
     
     // Get current user ID (fallback to 'local-user' if not authenticated)
     const userData = localStorage.getItem(STORAGE_KEYS.USER_DATA);

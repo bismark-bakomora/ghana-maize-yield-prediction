@@ -83,6 +83,7 @@ export interface PredictionResult {
   recommendations: string[];
   modelVersion: string;
   createdAt: string;
+  riskLevel: 'Low' | 'Medium' | 'High';
 }
 
 export interface PredictionHistory {
