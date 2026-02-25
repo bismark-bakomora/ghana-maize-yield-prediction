@@ -17,6 +17,9 @@ from typing import Dict, List, Tuple, Optional, Any
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import StackingRegressor
+from sklearn.model_selection import RandomizedSearchCV
+from scipy.stats import randint, uniform
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import xgboost as xgb
 import lightgbm as lgb
@@ -90,7 +93,14 @@ class ModelTrainer:
                     random_state=self.random_state,
                     n_jobs=-1
                 ),
-                'scaled': False
+                'scaled': False,
+                'param_dist': {
+                    'n_estimators': randint(100, 400),
+                    'max_depth': randint(4, 20),
+                    'min_samples_split': randint(2, 20),
+                    'min_samples_leaf': randint(1, 10),
+                    'max_features': ['sqrt', 'log2', None]
+                }
             },
             'gradient_boosting': {
                 'model': GradientBoostingRegressor(
@@ -102,7 +112,13 @@ class ModelTrainer:
                     subsample=0.8,
                     random_state=self.random_state
                 ),
-                'scaled': False
+                'scaled': False,
+                'param_dist': {
+                    'n_estimators': randint(100, 400),
+                    'learning_rate': uniform(0.01, 0.3),
+                    'max_depth': randint(3, 10),
+                    'subsample': uniform(0.5, 0.5)
+                }
             },
             'xgboost': {
                 'model': xgb.XGBRegressor(
@@ -117,7 +133,15 @@ class ModelTrainer:
                     n_jobs=-1,
                     verbosity=0
                 ),
-                'scaled': False
+                'scaled': False,
+                'param_dist': {
+                    'n_estimators': randint(100, 400),
+                    'learning_rate': uniform(0.01, 0.3),
+                    'max_depth': randint(3, 10),
+                    'min_child_weight': randint(1, 6),
+                    'subsample': uniform(0.6, 0.4),
+                    'colsample_bytree': uniform(0.6, 0.4)
+                }
             },
             'lightgbm': {
                 'model': lgb.LGBMRegressor(
@@ -132,7 +156,14 @@ class ModelTrainer:
                     n_jobs=-1,
                     verbose=-1
                 ),
-                'scaled': False
+                'scaled': False,
+                'param_dist': {
+                    'n_estimators': randint(100, 400),
+                    'learning_rate': uniform(0.01, 0.3),
+                    'num_leaves': randint(20, 150),
+                    'min_child_samples': randint(5, 50),
+                    'subsample': uniform(0.5, 0.5)
+                }
             }
         }
     
@@ -196,19 +227,54 @@ class ModelTrainer:
         model = model_config['model']
         
         # Train model
-        model.fit(X_train, y_train)
-        
+        # If model supports early stopping, use validation set to avoid overfitting
+        try:
+            if isinstance(model, xgb.XGBRegressor) or isinstance(model, lgb.LGBMRegressor):
+                model.fit(
+                    X_train,
+                    y_train,
+                    eval_set=[(X_val, y_val)],
+                    early_stopping_rounds=20,
+                    verbose=False,
+                )
+            else:
+                model.fit(X_train, y_train)
+        except TypeError:
+            # Some wrappers may not accept eval_set; fallback to basic fit
+            model.fit(X_train, y_train)
+
         # Make predictions
         train_pred = model.predict(X_train)
         val_pred = model.predict(X_val)
-        
+
         # Evaluate
         train_metrics = self.evaluate_model(y_train, train_pred, model_name, 'train')
         val_metrics = self.evaluate_model(y_val, val_pred, model_name, 'val')
-        
+
         logger.info(f"  Train R²: {train_metrics['r2']:.4f} | Val R²: {val_metrics['r2']:.4f}")
-        
+
         return model, train_metrics, val_metrics
+
+    def tune_model(self, model, param_dist, X_train, y_train, n_iter: int = 10):
+        """
+        Tune model hyperparameters using RandomizedSearchCV.
+        """
+        try:
+            rs = RandomizedSearchCV(
+                estimator=model,
+                param_distributions=param_dist,
+                n_iter=n_iter,
+                scoring='r2',
+                cv=3,
+                random_state=self.random_state,
+                n_jobs=-1
+            )
+            rs.fit(X_train, y_train)
+            logger.info(f"Tuning complete. Best params: {rs.best_params_}")
+            return rs.best_estimator_
+        except Exception as e:
+            logger.warning(f"Hyperparameter tuning failed: {e}")
+            return model
     
     def train_all_models(
         self,
@@ -220,7 +286,11 @@ class ModelTrainer:
         y_train_scaled: Optional[pd.Series] = None,
         X_val_scaled: Optional[pd.DataFrame] = None,
         y_val_scaled: Optional[pd.Series] = None,
-        models_to_train: Optional[List[str]] = None
+        models_to_train: Optional[List[str]] = None,
+        oversample: bool = True,
+        tune: bool = False,
+        tune_n_iter: int = 10,
+        stacking: bool = False
     ) -> Dict[str, Any]:
         """
         Train all configured models.
@@ -249,6 +319,8 @@ class ModelTrainer:
         if models_to_train:
             model_configs = {k: v for k, v in model_configs.items() if k in models_to_train}
         
+        trained_models_for_ensemble = {}
+
         for model_name, config in model_configs.items():
             # Use scaled or unscaled data based on model type
             if config['scaled'] and X_train_scaled is not None:
@@ -258,13 +330,53 @@ class ModelTrainer:
                 X_tr, y_tr = X_train, y_train
                 X_v, y_v = X_val, y_val
             
-            # Train model
+            # IMPORTANT: Tune on clean (non-oversampled) data to avoid leakage.
+            # Hyperparams should be selected based on the original distribution.
+            model_to_train = config['model']
+            if tune and 'param_dist' in config:
+                model_to_train = self.tune_model(model_to_train, config['param_dist'], X_tr, y_tr, n_iter=tune_n_iter)
+                logger.info(f"Using tuned hyperparams for {model_name}")
+            
+            # Optionally oversample training data to improve performance on rare targets.
+            # This happens AFTER tuning so oversample only affects the final fit.
+            X_tr_train, y_tr_train = X_tr, y_tr  # Keep original for validation
+            if oversample:
+                try:
+                    from imblearn.over_sampling import RandomOverSampler
+
+                    # Bin the continuous target into quantiles to create strata
+                    bins = pd.qcut(y_tr_train, q=5, labels=False, duplicates='drop')
+
+                    # concatenate X and y so we oversample rows consistently
+                    train_join = pd.concat([X_tr_train.reset_index(drop=True), y_tr_train.reset_index(drop=True)], axis=1)
+
+                    ros = RandomOverSampler(random_state=self.random_state)
+                    resampled_array, _ = ros.fit_resample(train_join, bins)
+
+                    resampled_df = pd.DataFrame(resampled_array, columns=train_join.columns)
+
+                    # convert numeric columns back to numeric types
+                    for c in X_tr_train.columns:
+                        if pd.api.types.is_numeric_dtype(X_tr_train[c]):
+                            resampled_df[c] = pd.to_numeric(resampled_df[c], errors='coerce')
+
+                    y_col = y_tr_train.name
+                    resampled_df[y_col] = pd.to_numeric(resampled_df[y_col], errors='coerce')
+
+                    X_tr_train = resampled_df[X_tr_train.columns]
+                    y_tr_train = resampled_df[y_col]
+                    logger.info(f"Oversampled training set for {model_name}: {len(X_tr_train)} samples")
+                except Exception as e:
+                    logger.warning(f"Oversampling failed or imblearn not installed: {e}")
+
+            # If stacking requested for ensemble, handle after individual models
             model, train_metrics, val_metrics = self.train_model(
-                model_name, X_tr, y_tr, X_v, y_v, config
+                model_name, X_tr_train, y_tr_train, X_v, y_v, {**config, 'model': model_to_train}
             )
             
             # Store results
             self.models[model_name] = model
+            trained_models_for_ensemble[model_name] = model
             self.results.extend([train_metrics, val_metrics])
         
         # Select best model based on validation R²
@@ -272,6 +384,24 @@ class ModelTrainer:
         best_result = max(val_results, key=lambda x: x['r2'])
         self.best_model_name = best_result['model']
         self.best_model = self.models[self.best_model_name]
+
+        # Optionally build a stacking ensemble from top models
+        if stacking:
+            try:
+                # pick top 3 models by val r2
+                top_models = sorted(
+                    [r for r in val_results],
+                    key=lambda x: x['r2'],
+                    reverse=True
+                )[:3]
+                estimators = [(m['model'], self.models[m['model']]) for m in top_models]
+                stack = StackingRegressor(estimators=estimators, final_estimator=Ridge())
+                # train on full train (X_train, y_train) provided externally isn't accessible here,
+                # so we return the stacking estimator for downstream user to fit if desired.
+                self.models['stacking'] = stack
+                logger.info(f"Prepared stacking ensemble with: {', '.join([n for n,_ in estimators])}")
+            except Exception as e:
+                logger.warning(f"Failed to build stacking ensemble: {e}")
         
         logger.info("\n" + "=" * 80)
         logger.info(f"BEST MODEL: {self.best_model_name}")
@@ -435,7 +565,11 @@ def train_models(
     data_dir: str,
     output_dir: str,
     models_to_train: Optional[List[str]] = None,
-    evaluate_test: bool = True
+    evaluate_test: bool = True,
+    oversample: bool = True,
+    tune: bool = False,
+    tune_n_iter: int = 10,
+    stacking: bool = False
 ) -> ModelTrainer:
     """
     Convenience function for complete model training pipeline.
@@ -493,7 +627,11 @@ def train_models(
     trainer.train_all_models(
         X_train, y_train, X_val, y_val,
         X_train_scaled, y_train_scaled, X_val_scaled, y_val_scaled,
-        models_to_train=models_to_train
+        models_to_train=models_to_train,
+        oversample=oversample,
+        tune=tune,
+        tune_n_iter=tune_n_iter,
+        stacking=stacking
     )
     
     # Evaluate on test set

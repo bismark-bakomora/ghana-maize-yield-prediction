@@ -88,13 +88,21 @@ class ModelService:
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         data = df.copy()
 
+        # Core interactions and ratios derived from inputs only (no leakage)
         if {"Temperature", "Sunlight"} <= set(data.columns):
+            # proxy for heat accumulation across the season
             data["Growing_Degree_Days"] = data["Temperature"] * data["Sunlight"]
+            # additional interaction retained for model experiments
+            data["Temp_Sun_Interaction"] = data["Temperature"] * data["Sunlight"]
 
         if {"Rainfall", "Soil_Moisture"} <= set(data.columns):
+            # water available to plants combining precipitation and retention
             data["Water_Availability"] = data["Rainfall"] * data["Soil_Moisture"]
+            # direct ratio to capture rainfall efficiency given soil moisture
+            data["Rainfall_per_Moisture"] = data["Rainfall"] / (data["Soil_Moisture"] + 1)
 
         if {"Temperature", "Humidity"} <= set(data.columns):
+            # higher temperature with low humidity increases stress
             data["Climate_Stress"] = data["Temperature"] / (data["Humidity"] + 1)
 
         if {"Soil_Moisture", "Temperature"} <= set(data.columns):
@@ -104,14 +112,36 @@ class ModelService:
             data["Rainfall_per_Sun"] = data["Rainfall"] / (data["Sunlight"] + 1)
 
         if {"Year", "PFJ_Policy"} <= set(data.columns):
+            # years since PFJ program started (2017) only when policy is present
             data["Years_Since_PFJ"] = data.apply(
-                lambda r: max(0, r["Year"] - 2017) if r["PFJ_Policy"] == 1 else 0,
+                lambda r: max(0, int(r["Year"]) - 2017) if int(r.get("PFJ_Policy", 0)) == 1 else 0,
                 axis=1,
             )
 
+        # Pest and soil interactions (use only input fields)
+        if {"Pest_Risk", "Soil_Moisture"} <= set(data.columns):
+            # captures risk amplification when pests are high and moisture low
+            data["Pest_Soil_Risk"] = data["Pest_Risk"] * (1 - data["Soil_Moisture"])
+
+        # Safe defaults for yield-derived features: compute only from provided lags
+        # Do NOT use the target `Yield` anywhere (prevents leakage)
         if "Yield_Lag1" in data.columns:
-            data["Yield_Change"] = 0
-            data["Yield_Growth_Rate"] = 0
+            # If user provided a second lag (historical previous yield), compute change/growth
+            if "Yield_Lag2" in data.columns and pd.notna(data.loc[0, "Yield_Lag2"]):
+                try:
+                    y1 = float(data.loc[0, "Yield_Lag1"])
+                    y2 = float(data.loc[0, "Yield_Lag2"])
+                except Exception:
+                    # fallback to zeros if values are malformed
+                    data["Yield_Change"] = 0.0
+                    data["Yield_Growth_Rate"] = 0.0
+                else:
+                    data["Yield_Change"] = y1 - y2
+                    data["Yield_Growth_Rate"] = (y1 - y2) / (abs(y2) + 1e-6)
+            else:
+                # keep consistent behaviour when only one lag is available
+                data["Yield_Change"] = 0.0
+                data["Yield_Growth_Rate"] = 0.0
 
         return data
 
@@ -130,6 +160,7 @@ class ModelService:
             "pest_risk": "Pest_Risk",
             "pfj_policy": "PFJ_Policy",
             "yield_lag1": "Yield_Lag1",
+            "yield_lag2": "Yield_Lag2",
         }
 
         df = df.rename(columns=column_mapping)

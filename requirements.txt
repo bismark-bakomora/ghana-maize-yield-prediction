@@ -31,6 +31,9 @@ ipykernel>=6.0.0
 pytest>=7.0.0
 pytest-cov>=3.0.0
 
+# Imbalanced learning for oversampling
+imbalanced-learn>=0.11.0
+
 # Code Quality
 black>=22.0.0
 flake8>=4.0.0

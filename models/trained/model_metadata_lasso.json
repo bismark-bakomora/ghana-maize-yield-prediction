@@ -1,7 +1,7 @@
 {
-    "model_name": "Lasso",
+    "model_name": "lasso",
     "model_type": "Lasso",
-    "training_date": "2025-12-26 21:40:31",
+    "training_date": "2026-02-25 02:20:14",
     "features_used": [
         "Rainfall",
         "Temperature",
@@ -19,15 +19,7 @@
         "Years_Since_PFJ"
     ],
     "n_features": 14,
-    "training_samples": 1228,
-    "validation_samples": 364,
-    "test_samples": 182,
-    "test_metrics": {
-        "RMSE": 0.3886549554516257,
-        "MAE": 0.3886549554516257,
-        "R2": -7.659280534622786e+29,
-        "MAPE": 15.361855946704573
-    },
+    "test_metrics": {},
     "hyperparameters": {
         "alpha": 0.01,
         "copy_X": true,
@@ -39,5 +31,9 @@
         "selection": "cyclic",
         "tol": 0.0001,
         "warm_start": false
-    }
+    },
+    "random_state": 42,
+    "training_samples": 1228,
+    "validation_samples": 364,
+    "test_samples": 182
 }

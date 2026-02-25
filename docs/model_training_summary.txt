@@ -3,13 +3,13 @@
 MODEL TRAINING SUMMARY
 ================================================================================
 
-BEST MODEL: Lasso
+BEST MODEL: XGBoost
 
 TEST SET PERFORMANCE:
-  - R² Score:  -765928053462278583707443920896.0000
-  - RMSE:      0.3887 tons/ha
-  - MAE:       0.3887 tons/ha
-  - MAPE:      15.36%
+  - R² Score:  0.8930
+  - RMSE:      0.1612 tons/ha
+  - MAE:       0.0883 tons/ha
+  - MAPE:      5.64%
 
 MODELS TRAINED:
   1. Linear Regression
@@ -22,14 +22,14 @@ MODELS TRAINED:
   8. LightGBM
 
 DATASET INFO:
-  - Training samples:   1,228
-  - Validation samples: 364
-  - Test samples:       182
-  - Features used:      14
+  - Training samples:   1,241
+  - Validation samples: 355
+  - Test samples:       178
+  - Features used:      19
 
 FILES SAVED:
-  ✓ Model: best_model_lasso.pkl
-  ✓ Metadata: model_metadata_lasso.json
+  ✓ Model: best_model_xgboost.pkl
+  ✓ Metadata: model_metadata_xgboost.json
   ✓ Results: all_model_results.csv
 
 ================================================================================

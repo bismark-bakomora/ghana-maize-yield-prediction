@@ -192,47 +192,58 @@ class MaizeDataPreprocessor:
         df = df.copy()
         features_created = 0
         
-        # 1. Growing Degree Days
+        # 1. Growing Degree Days and Temp-Sun interaction
         if 'Temperature' in df.columns and 'Sunlight' in df.columns:
             df['Growing_Degree_Days'] = df['Temperature'] * df['Sunlight']
+            df['Temp_Sun_Interaction'] = df['Temperature'] * df['Sunlight']
             features_created += 1
-        
-        # 2. Water Availability Index
+
+        # 2. Water Availability Index and Rainfall per Moisture
         if 'Rainfall' in df.columns and 'Soil_Moisture' in df.columns:
             df['Water_Availability'] = df['Rainfall'] * df['Soil_Moisture']
+            df['Rainfall_per_Moisture'] = df['Rainfall'] / (df['Soil_Moisture'] + 1)
             features_created += 1
-        
+
         # 3. Climate Stress Index
         if 'Temperature' in df.columns and 'Humidity' in df.columns:
             df['Climate_Stress'] = df['Temperature'] / (df['Humidity'] + 1)
             features_created += 1
-        
+
         # 4. Moisture-Temperature Ratio
         if 'Soil_Moisture' in df.columns and 'Temperature' in df.columns:
             df['Moisture_Temp_Ratio'] = df['Soil_Moisture'] / (df['Temperature'] + 1)
             features_created += 1
-        
+
         # 5. Rainfall per Sunlight Hour
         if 'Rainfall' in df.columns and 'Sunlight' in df.columns:
             df['Rainfall_per_Sun'] = df['Rainfall'] / (df['Sunlight'] + 1)
             features_created += 1
-        
+
         # 6. Years since PFJ start
         if 'Year' in df.columns and 'PFJ_Policy' in df.columns:
             df['Years_Since_PFJ'] = df.apply(
-                lambda row: max(0, row['Year'] - 2017) if row['PFJ_Policy'] == 1 else 0,
+                lambda row: max(0, int(row['Year']) - 2017) if int(row.get('PFJ_Policy', 0)) == 1 else 0,
                 axis=1
             )
             features_created += 1
-        
-        # 7. Yield Change
-        if 'Yield' in df.columns and 'Yield_Lag1' in df.columns:
-            df['Yield_Change'] = df['Yield'] - df['Yield_Lag1']
+
+        # 7. Pest-Soil interaction (uses only inputs)
+        if 'Pest_Risk' in df.columns and 'Soil_Moisture' in df.columns:
+            df['Pest_Soil_Risk'] = df['Pest_Risk'] * (1 - df['Soil_Moisture'])
             features_created += 1
-        
-        # 8. Yield Growth Rate
-        if 'Yield' in df.columns and 'Yield_Lag1' in df.columns:
-            df['Yield_Growth_Rate'] = (df['Yield'] - df['Yield_Lag1']) / (df['Yield_Lag1'] + 0.001)
+
+        # 8. Yield-derived features computed only from lags (no leakage)
+        if 'Yield_Lag1' in df.columns:
+            # compute from Yield_Lag1 and optional Yield_Lag2 when available
+            if 'Yield_Lag2' in df.columns:
+                # safe numeric coercion
+                df['Yield_Lag1'] = pd.to_numeric(df['Yield_Lag1'], errors='coerce')
+                df['Yield_Lag2'] = pd.to_numeric(df['Yield_Lag2'], errors='coerce')
+                df['Yield_Change'] = df['Yield_Lag1'] - df['Yield_Lag2']
+                df['Yield_Growth_Rate'] = (df['Yield_Lag1'] - df['Yield_Lag2']) / (df['Yield_Lag2'].abs() + 1e-6)
+            else:
+                df['Yield_Change'] = 0.0
+                df['Yield_Growth_Rate'] = 0.0
             features_created += 1
         
         self.preprocessing_stats['features_engineered'] = features_created
@@ -247,37 +258,83 @@ class MaizeDataPreprocessor:
         test_years: Optional[List[int]] = None
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
-        Split data into train/validation/test sets based on years.
-        
+        Split data into train/validation/test sets.
+
+        By default this performs a random 70/20/10 split (stratified by `District` when
+        possible). For backwards compatibility you can still provide explicit
+        `train_years`, `val_years`, and `test_years` lists to split by years.
+
         Args:
             df: Input dataframe
-            train_years: Years for training (default: 2011-2018)
-            val_years: Years for validation (default: 2019-2020)
-            test_years: Years for testing (default: 2021)
-            
+            train_years: If provided, years to include in train set (keeps legacy behavior)
+            val_years: If provided, years to include in validation set
+            test_years: If provided, years to include in test set
+
         Returns:
             Tuple of (train_df, val_df, test_df)
         """
         logger.info("Splitting data into train/validation/test sets...")
-        
-        if train_years is None:
-            train_years = list(range(2011, 2019))
-        if val_years is None:
-            val_years = [2019, 2020]
-        if test_years is None:
-            test_years = [2021]
-        
-        df = df.sort_values(['Year', 'District']).reset_index(drop=True)
-        
-        train_df = df[df['Year'].isin(train_years)].copy()
-        val_df = df[df['Year'].isin(val_years)].copy()
-        test_df = df[df['Year'].isin(test_years)].copy()
-        
-        logger.info(f"Train: {len(train_df)} samples ({len(train_df)/len(df)*100:.1f}%)")
-        logger.info(f"Validation: {len(val_df)} samples ({len(val_df)/len(df)*100:.1f}%)")
-        logger.info(f"Test: {len(test_df)} samples ({len(test_df)/len(df)*100:.1f}%)")
-        
-        return train_df, val_df, test_df
+        # If user supplies explicit year-based splits, preserve that behaviour
+        if any([train_years, val_years, test_years]):
+            if train_years is None:
+                train_years = list(range(2011, 2019))
+            if val_years is None:
+                val_years = [2019, 2020]
+            if test_years is None:
+                test_years = [2021]
+
+            df = df.sort_values(['Year', 'District']).reset_index(drop=True)
+
+            train_df = df[df['Year'].isin(train_years)].copy()
+            val_df = df[df['Year'].isin(val_years)].copy()
+            test_df = df[df['Year'].isin(test_years)].copy()
+        else:
+            # Random 70/20/10 split
+            from sklearn.model_selection import train_test_split
+
+            df = df.sample(frac=1.0, random_state=self.random_state).reset_index(drop=True)
+
+            stratify_col = None
+            if 'District' in df.columns and df['District'].nunique() > 1:
+                stratify_col = df['District']
+
+            try:
+                # First split: train (70%) and temp (30%)
+                train_df, temp_df = train_test_split(
+                    df,
+                    test_size=0.3,
+                    random_state=self.random_state,
+                    stratify=stratify_col
+                )
+
+                # Second split: validation (20%) and test (10%) from temp
+                # temp is 30% overall; to get 20% val and 10% test, split temp with test_size=1/3
+                stratify_temp = temp_df['District'] if stratify_col is not None else None
+                val_df, test_df = train_test_split(
+                    temp_df,
+                    test_size=1/3,
+                    random_state=self.random_state,
+                    stratify=stratify_temp
+                )
+            except Exception:
+                # Fallback to non-stratified split if stratification fails
+                train_df, temp_df = train_test_split(
+                    df,
+                    test_size=0.3,
+                    random_state=self.random_state,
+                )
+                val_df, test_df = train_test_split(
+                    temp_df,
+                    test_size=1/3,
+                    random_state=self.random_state,
+                )
+
+        total = len(df)
+        logger.info(f"Train: {len(train_df)} samples ({len(train_df)/total*100:.1f}%)")
+        logger.info(f"Validation: {len(val_df)} samples ({len(val_df)/total*100:.1f}%)")
+        logger.info(f"Test: {len(test_df)} samples ({len(test_df)/total*100:.1f}%)")
+
+        return train_df.reset_index(drop=True), val_df.reset_index(drop=True), test_df.reset_index(drop=True)
     
     def scale_features(
         self,
