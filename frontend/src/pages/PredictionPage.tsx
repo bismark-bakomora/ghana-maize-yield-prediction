@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Loader2, Sprout, Info, ChevronRight, CheckCircle2, AlertTriangle, ShieldCheck, BarChart3 } from 'lucide-react';
+import { Loader2, Sprout, Info, ChevronRight, AlertTriangle, BarChart3, Lightbulb } from 'lucide-react';
 import Layout from '../components/Layout/Layout';
 import { usePrediction } from '../hooks/usePrediction';
 import { PredictionInput } from '../types';
-import { GHANA_DISTRICTS } from '../utils/constants';
+import { GHANA_DISTRICTS } from '../constants';
+import { generateYieldExplanation, getYieldCategory, generateDetailedRecommendations, getYieldSummary } from '../utils/yieldInterpreter';
 
 // Sub-component for grouping related inputs
 const InputGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -109,14 +110,6 @@ const PredictionPage: React.FC = () => {
       console.error('Prediction error:', error);
     }
   };
-
-  const getRiskLevel = (confidence: number): string => {
-    if (confidence >= 0.8) return 'Low';
-    if (confidence >= 0.6) return 'Medium';
-    return 'High';
-  };
-
-  const riskLevel = currentPrediction ? getRiskLevel(currentPrediction.confidence) : 'Low';
 
   // Generate year options (current year ± 5 years)
   const currentYear = new Date().getFullYear();
@@ -260,7 +253,7 @@ const PredictionPage: React.FC = () => {
           </div>
 
           {/* Results Column */}
-          <div className="xl:col-span-1 space-y-6">
+          <div className="xl:col-span-1 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto pr-4">
             {!currentPrediction && !isLoading && (
               <div className="bg-stone-50 border-2 border-dashed border-stone-200 rounded-3xl p-12 text-center h-full flex flex-col items-center justify-center text-stone-400">
                 <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm">
@@ -283,85 +276,116 @@ const PredictionPage: React.FC = () => {
 
             {currentPrediction && !isLoading && (
               <div className="space-y-6 animate-in zoom-in-95 duration-500">
-                <div className="bg-white p-8 rounded-3xl shadow-xl border border-emerald-50 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4">
-                    {riskLevel === 'Low' ? (
-                      <CheckCircle2 className="text-emerald-500" />
-                    ) : (
-                      <AlertTriangle className="text-amber-500" />
-                    )}
+                {/* Main Yield Card */}
+                <div className="bg-gradient-to-br from-emerald-50 to-stone-50 p-8 rounded-3xl shadow-xl border border-emerald-100 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 text-4xl">
+                    {getYieldCategory(currentPrediction.predictedYield).emoji}
                   </div>
                   
-                  <p className="text-xs font-bold text-emerald-600 uppercase mb-2">Estimated Yield</p>
-                  <div className="flex items-baseline gap-2 mb-6">
-                    <h2 className="text-5xl font-bold text-stone-900">
+                  <p className="text-xs font-bold text-emerald-700 uppercase mb-2 tracking-wide">Your Estimated Harvest</p>
+                  <div className="flex items-baseline gap-2 mb-4">
+                    <h2 className="text-6xl font-bold text-stone-900">
                       {currentPrediction.predictedYield.toFixed(2)}
                     </h2>
-                    <span className="text-stone-500 font-medium">Mt/Ha</span>
+                    <span className="text-stone-600 font-semibold text-lg">Metric Tons/Hectare</span>
                   </div>
 
-                  <div className="space-y-4">
+                  {/* Yield Category Badge */}
+                  <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold mb-4 ${
+                    getYieldCategory(currentPrediction.predictedYield).bgColor
+                  } ${getYieldCategory(currentPrediction.predictedYield).textColor}`}>
+                    {getYieldCategory(currentPrediction.predictedYield).category} Yield
+                  </div>
+
+                  {/* Confidence Bar */}
+                  <div className="space-y-3 mt-6 pt-6 border-t border-emerald-200">
                     <div>
-                      <div className="flex justify-between text-xs font-bold mb-1">
-                        <span className="text-stone-500 uppercase">Confidence</span>
-                        <span className="text-emerald-600">
-                          {(currentPrediction.confidence * 100).toFixed(0)}%
+                      <div className="flex justify-between text-xs font-bold mb-2">
+                        <span className="text-stone-600 uppercase">Prediction Confidence</span>
+                        <span className="text-emerald-700 text-sm">
+                          {(currentPrediction.confidence * 100).toFixed(0)}% Confident
                         </span>
                       </div>
-                      <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                      <div className="h-3 bg-stone-200 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-emerald-500 rounded-full transition-all duration-1000" 
+                          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-1000" 
                           style={{ width: `${currentPrediction.confidence * 100}%` }}
                         />
                       </div>
                     </div>
 
-                    <div className={`p-3 rounded-xl flex items-center gap-3 ${
-                      riskLevel === 'Low' 
-                        ? 'bg-emerald-50 text-emerald-700' 
-                        : riskLevel === 'Medium'
-                        ? 'bg-yellow-50 text-yellow-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}>
-                      <ShieldCheck size={20} />
-                      <span className="text-sm font-bold">{riskLevel} Production Risk</span>
-                    </div>
+                    {/* Confidence Interval */}
+                    <p className="text-xs text-stone-600">
+                      Most likely range: <span className="font-semibold text-stone-800">
+                        {currentPrediction.confidenceInterval?.lower.toFixed(2)} - {currentPrediction.confidenceInterval?.upper.toFixed(2)} Mt/Ha
+                      </span>
+                    </p>
                   </div>
                 </div>
 
-                {currentPrediction.recommendations.length > 0 && (
-                  <div className="bg-stone-900 text-white p-6 rounded-3xl shadow-lg">
-                    <h4 className="font-bold mb-4 flex items-center gap-2">
-                      <ChevronRight size={18} className="text-emerald-400" />
-                      Key Recommendations
-                    </h4>
-                    <ul className="space-y-3">
-                      {currentPrediction.recommendations.map((rec, i) => (
-                        <li key={i} className="text-sm text-stone-300 flex items-start gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
-                          {rec}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {/* Plain Language Explanation */}
+                <div className="bg-white p-6 rounded-3xl shadow-lg border border-blue-100">
+                  <h4 className="font-bold mb-3 flex items-center gap-2 text-stone-900">
+                    <Lightbulb size={20} className="text-blue-600" />
+                    What This Means for Your Farm
+                  </h4>
+                  <p className="text-sm text-stone-700 leading-relaxed">
+                    {generateYieldExplanation(currentPrediction.predictedYield, inputs.yieldLag1)}
+                  </p>
+                </div>
 
+                {/* Quick Summary */}
+                <div className="bg-stone-100 p-4 rounded-2xl border border-stone-200">
+                  <p className="text-sm text-stone-700 leading-relaxed italic">
+                    💡 {getYieldSummary(currentPrediction.predictedYield, currentPrediction.confidence)}
+                  </p>
+                </div>
+
+                {/* Detailed Recommendations */}
+                <div className="bg-gradient-to-br from-emerald-900 to-emerald-800 text-white p-7 rounded-3xl shadow-xl">
+                  <h4 className="font-bold mb-5 flex items-center gap-2 text-lg">
+                    <ChevronRight size={22} className="text-emerald-300" />
+                    Detailed Action Plan
+                  </h4>
+                  <ul className="space-y-4">
+                    {generateDetailedRecommendations(
+                      currentPrediction.predictedYield,
+                      inputs,
+                      currentPrediction.riskFactors || []
+                    ).map((rec, i) => (
+                      <li key={i} className="text-sm text-emerald-50 flex items-start gap-3">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-700 flex-shrink-0 text-xs font-bold">
+                          {i + 1}
+                        </span>
+                        <span className="pt-0.5">{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Risk Factors */}
                 {currentPrediction.riskFactors && currentPrediction.riskFactors.length > 0 && (
-                  <div className="bg-amber-50 border border-amber-200 text-amber-900 p-6 rounded-3xl">
-                    <h4 className="font-bold mb-3 flex items-center gap-2">
-                      <AlertTriangle size={18} />
-                      Risk Factors
+                  <div className="bg-amber-50 border-2 border-amber-200 text-amber-900 p-6 rounded-3xl">
+                    <h4 className="font-bold mb-4 flex items-center gap-2 text-base">
+                      <AlertTriangle size={20} />
+                      Identified Risk Factors
                     </h4>
                     <ul className="space-y-2">
                       {currentPrediction.riskFactors.map((risk, i) => (
                         <li key={i} className="text-sm flex items-start gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5 flex-shrink-0" />
-                          {risk}
+                          <span className="w-2 h-2 rounded-full bg-amber-600 mt-1.5 flex-shrink-0" />
+                          <span>{risk}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
+
+                {/* Model & Confidence Info */}
+                <div className="bg-stone-100 p-4 rounded-2xl text-xs text-stone-600">
+                  <p>Model: <span className="font-semibold">{currentPrediction.modelVersion}</span></p>
+                  <p className="mt-1">This prediction is based on your location, weather patterns, soil conditions, and farming practices.</p>
+                </div>
               </div>
             )}
           </div>
