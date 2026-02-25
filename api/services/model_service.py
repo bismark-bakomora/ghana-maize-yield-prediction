@@ -39,7 +39,9 @@ class ModelService:
         self.metadata = None
         self.model_name = None
         self.feature_names = []
+        self.config = None
 
+        self._load_config()
         self._load_model()
         self._load_scaler()
         self._load_metadata()
@@ -48,7 +50,32 @@ class ModelService:
     # Model & Artifacts Loading
     # ------------------------------------------------------------------
 
+    def _load_config(self):
+        """Load model configuration to determine which model to use."""
+        config_path = self.model_dir / "model_config.json"
+        if config_path.exists():
+            try:
+                with open(config_path, "r") as f:
+                    self.config = json.load(f)
+                logger.info(f"✅ Loaded model config: {self.config.get('best_model_name')}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to load config: {e}")
+                self.config = None
+        else:
+            logger.warning(f"⚠️ No model_config.json found in {self.model_dir}")
+            self.config = None
+
     def _load_model(self):
+        # If config specifies a model, use that; otherwise fall back to glob pattern
+        if self.config and "best_model_name" in self.config:
+            model_path = self.model_dir / f"best_model_{self.config['best_model_name']}.pkl"
+            if model_path.exists():
+                self.model = joblib.load(model_path)
+                self.model_name = self.config['best_model_name']
+                logger.info(f"✅ Loaded model from config: {self.model_name}")
+                return
+
+        # Fallback: use first matching model file
         model_files = list(self.model_dir.glob("best_model_*.pkl"))
         if not model_files:
             logger.warning(f"⚠️ No trained model found in {self.model_dir}")
@@ -58,7 +85,7 @@ class ModelService:
         model_path = model_files[0]
         self.model = joblib.load(model_path)
         self.model_name = model_path.stem.replace("best_model_", "")
-        logger.info(f"✅ Loaded model: {self.model_name}")
+        logger.warning(f"⚠️ No config found; loaded first available model: {self.model_name}")
 
     def _load_scaler(self):
         scaler_path = self.model_dir / "scaler.pkl"
@@ -69,6 +96,17 @@ class ModelService:
             logger.warning("⚠️ No scaler found. Features will not be scaled.")
 
     def _load_metadata(self):
+        # If config specifies a model, use its metadata
+        if self.config and "best_model_name" in self.config:
+            metadata_path = self.model_dir / f"model_metadata_{self.config['best_model_name']}.json"
+            if metadata_path.exists():
+                with open(metadata_path, "r") as f:
+                    self.metadata = json.load(f)
+                self.feature_names = self.metadata.get("features_used", [])
+                logger.info(f"✅ Loaded metadata ({len(self.feature_names)} features)")
+                return
+
+        # Fallback: use first matching metadata file
         metadata_files = list(self.model_dir.glob("model_metadata_*.json"))
         if not metadata_files:
             logger.warning("⚠️ No metadata file found")
@@ -79,7 +117,7 @@ class ModelService:
             self.metadata = json.load(f)
 
         self.feature_names = self.metadata.get("features_used", [])
-        logger.info(f"✅ Loaded metadata ({len(self.feature_names)} features)")
+        logger.warning(f"⚠️ No config found; using first available metadata ({len(self.feature_names)} features)")
 
     # ------------------------------------------------------------------
     # Feature Engineering

@@ -542,6 +542,17 @@ class ModelTrainer:
         results_filename = 'all_model_results.csv'
         results_df.to_csv(output_path / results_filename, index=False)
         logger.info(f"Saved all results to {output_path / results_filename}")
+        
+        # Save model config to explicitly mark this as the best model for the API
+        config = {
+            'best_model_name': self.best_model_name,
+            'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'description': f"Test R²: {test_metrics.get('r2', 0):.4f}, RMSE: {test_metrics.get('rmse', 0):.4f}"
+        }
+        config_filename = 'model_config.json'
+        with open(output_path / config_filename, 'w') as f:
+            json.dump(config, f, indent=4)
+        logger.info(f"Saved model config to {output_path / config_filename}")
     
     def load_model(self, model_path: str, metadata_path: Optional[str] = None):
         """

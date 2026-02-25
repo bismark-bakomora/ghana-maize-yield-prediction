@@ -1,0 +1,5 @@
+{
+    "best_model_name": "gradient_boosting",
+    "last_updated": "2026-02-25",
+    "description": "Current production model for maize yield prediction. Test R²: 0.9089, RMSE: 0.1487"
+}
