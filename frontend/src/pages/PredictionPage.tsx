@@ -253,7 +253,7 @@ const PredictionPage: React.FC = () => {
           </div>
 
           {/* Results Column */}
-          <div className="xl:col-span-1 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto pr-4">
+          <div className="xl:col-span-2 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden pr-4 w-full">
             {!currentPrediction && !isLoading && (
               <div className="bg-stone-50 border-2 border-dashed border-stone-200 rounded-3xl p-12 text-center h-full flex flex-col items-center justify-center text-stone-400">
                 <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm">
@@ -277,17 +277,17 @@ const PredictionPage: React.FC = () => {
             {currentPrediction && !isLoading && (
               <div className="space-y-6 animate-in zoom-in-95 duration-500">
                 {/* Main Yield Card */}
-                <div className="bg-gradient-to-br from-emerald-50 to-stone-50 p-8 rounded-3xl shadow-xl border border-emerald-100 relative overflow-hidden">
+                <div className="w-full bg-gradient-to-br from-emerald-50 to-stone-50 p-8 rounded-3xl shadow-xl border border-emerald-100 relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-4 text-4xl">
                     {getYieldCategory(currentPrediction.predictedYield).emoji}
                   </div>
                   
                   <p className="text-xs font-bold text-emerald-700 uppercase mb-2 tracking-wide">Your Estimated Harvest</p>
-                  <div className="flex items-baseline gap-2 mb-4">
+                  <div className="flex flex-wrap items-baseline gap-2 mb-4">
                     <h2 className="text-6xl font-bold text-stone-900">
                       {currentPrediction.predictedYield.toFixed(2)}
                     </h2>
-                    <span className="text-stone-600 font-semibold text-lg">Metric Tons/Hectare</span>
+                    <span className="text-stone-600 font-semibold text-lg whitespace-normal">Metric Tons/Hectare</span>
                   </div>
 
                   {/* Yield Category Badge */}
@@ -324,7 +324,7 @@ const PredictionPage: React.FC = () => {
                 </div>
 
                 {/* Plain Language Explanation */}
-                <div className="bg-white p-6 rounded-3xl shadow-lg border border-blue-100">
+                <div className="w-full bg-white p-6 rounded-3xl shadow-lg border border-blue-100">
                   <h4 className="font-bold mb-3 flex items-center gap-2 text-stone-900">
                     <Lightbulb size={20} className="text-blue-600" />
                     What This Means for Your Farm
@@ -335,14 +335,14 @@ const PredictionPage: React.FC = () => {
                 </div>
 
                 {/* Quick Summary */}
-                <div className="bg-stone-100 p-4 rounded-2xl border border-stone-200">
+                <div className="w-full bg-stone-100 p-4 rounded-2xl border border-stone-200">
                   <p className="text-sm text-stone-700 leading-relaxed italic">
                     💡 {getYieldSummary(currentPrediction.predictedYield, currentPrediction.confidence)}
                   </p>
                 </div>
 
                 {/* Detailed Recommendations */}
-                <div className="bg-gradient-to-br from-emerald-900 to-emerald-800 text-white p-7 rounded-3xl shadow-xl">
+                <div className="w-full bg-gradient-to-br from-emerald-900 to-emerald-800 text-white p-7 rounded-3xl shadow-xl">
                   <h4 className="font-bold mb-5 flex items-center gap-2 text-lg">
                     <ChevronRight size={22} className="text-emerald-300" />
                     Detailed Action Plan
