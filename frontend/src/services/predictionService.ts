@@ -197,27 +197,17 @@ class PredictionService {
     // Get last prediction date
     const lastPredictionDate = predictions[0]?.createdAt;
     
-    // Create trend data from predictions (group by month)
-    const trendMap = new Map<string, { sum: number; count: number }>();
-    
-    predictions.forEach(pred => {
-      const date = new Date(pred.createdAt);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      const existing = trendMap.get(monthKey) || { sum: 0, count: 0 };
-      existing.sum += pred.predictedYield;
-      existing.count += 1;
-      trendMap.set(monthKey, existing);
-    });
-    
-    const trendData = Array.from(trendMap.entries())
-      .map(([date, { sum, count }]) => ({
-        date,
-        yield: sum / count,
+    // Create trend data from all past predictions (one point per prediction)
+    const trendData = predictions
+      .map(pred => ({
+        date: pred.createdAt,
+        yield: pred.predictedYield,
         crop: 'Maize',
       }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-12); // Last 12 months
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      // optionally limit to last 24 points to avoid overcrowding
+      .slice(-24);
+
     
     return {
       totalPredictions: predictions.length,

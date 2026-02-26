@@ -71,18 +71,20 @@ const Dashboard: React.FC = () => {
   // Combine historical data with user predictions
   const getTrendData = () => {
     if (!hasPredictions || !dashboardStats.trendData || dashboardStats.trendData.length === 0) {
-      // Use historical data
+      // Use historical data with year labels
       return HISTORICAL_YIELD_TRENDS.map(item => ({
-        year: item.year.toString(),
+        dateLabel: item.year.toString(),
         yield: item.yield
       }));
     }
     
-    // Use user's prediction data
+    // Use user's prediction data, label by month/year
     return dashboardStats.trendData.map(item => {
       const date = new Date(item.date);
+      const month = date.toLocaleString('default', { month: 'short' });
+      const year = date.getFullYear();
       return {
-        year: date.getFullYear().toString(),
+        dateLabel: `${month} ${year}`,
         yield: item.yield
       };
     });
@@ -157,7 +159,7 @@ const Dashboard: React.FC = () => {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 
-                      dataKey="year" 
+                      dataKey="dateLabel" 
                       axisLine={false} 
                       tickLine={false} 
                       tick={{fill: '#94a3b8', fontSize: 12}} 
@@ -175,8 +177,10 @@ const Dashboard: React.FC = () => {
                         border: 'none', 
                         boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' 
                       }}
-                      formatter={(value?: number) =>
-                        value !== undefined ? [`${value.toFixed(2)} Mt/Ha`, 'Yield'] : ['—', 'Yield']
+                      formatter={(value: any) =>
+                        typeof value === 'number'
+                          ? [`${value.toFixed(2)} Mt/Ha`, 'Yield']
+                          : ['—', 'Yield']
                       }
                     />
                     <Area 
