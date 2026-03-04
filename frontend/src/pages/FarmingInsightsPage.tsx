@@ -329,14 +329,14 @@ const FarmingInsightsPage: React.FC = () => {
               </div>
 
               {/* Video Tutorial Placeholder */}
-              <div className="mt-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-8 text-center text-white">
+              <div className="mt-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-8 text-center text-white">
                 <div className="w-20 h-20 rounded-full bg-white/20 mx-auto mb-4 flex items-center justify-center">
-                  <Play className="w-8 h-8" />
+                  <Play className="w-8 h-8 text-emerald-50" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">
                   Video Tutorials Coming Soon
                 </h3>
-                <p className="text-amber-50">
+                <p className="text-emerald-50">
                   Watch step-by-step guides on maize farming techniques from local experts.
                 </p>
               </div>

@@ -265,12 +265,12 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-stone-900 text-white p-8 rounded-2xl shadow-lg">
+        <div className="bg-emerald-700 text-white p-8 rounded-2xl shadow-lg">
           <h3 className="text-2xl font-bold mb-6">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a 
               href="/predict" 
-              className="bg-white/10 hover:bg-white/20 backdrop-blur-md p-6 rounded-xl transition-all group"
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-6 rounded-xl transition-all group"
             >
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-emerald-500/20 rounded-lg">
@@ -283,7 +283,7 @@ const Dashboard: React.FC = () => {
             
             <a 
               href="/insights" 
-              className="bg-white/10 hover:bg-white/20 backdrop-blur-md p-6 rounded-xl transition-all group"
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-6 rounded-xl transition-all group"
             >
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
@@ -296,7 +296,7 @@ const Dashboard: React.FC = () => {
             
             <a 
               href="/profile" 
-              className="bg-white/10 hover:bg-white/20 backdrop-blur-md p-6 rounded-xl transition-all group"
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-6 rounded-xl transition-all group"
             >
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-amber-500/20 rounded-lg">
